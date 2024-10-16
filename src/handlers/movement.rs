@@ -206,7 +206,7 @@ pub async fn create_toner_movement(
                 VALUES ($1, $2, $3, $4, $5, $6);
                 "#,
             )
-            .bind(Uuid::new_v4())
+            .bind(new_movement.id)
             .bind(printer_id)
             .bind(new_movement.toner_id)
             .bind(new_movement.drum_id)
@@ -281,7 +281,7 @@ pub async fn create_drum_movement(
                 VALUES ($1, $2, $3, $4, $5, $6);
                 "#,
             )
-            .bind(Uuid::new_v4())
+            .bind(new_movement.id)
             .bind(printer_id)
             .bind(new_movement.toner_id)
             .bind(new_movement.drum_id)
