@@ -24,6 +24,29 @@ impl Movement {
     }
 }
 
+#[derive(Serialize)]
+pub struct MovementDetails {
+    pub id: Uuid,
+    pub printer: PrinterDetails,
+    pub item: ItemDetails,
+    pub quantity: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+pub struct ItemDetails {
+    pub id: Uuid,
+    pub name: String,
+    pub stock: i32,
+}
+
+#[derive(Serialize)]
+pub struct PrinterDetails {
+    pub id: Uuid,
+    pub name: String,
+    pub model: String,
+}
+
 #[derive(Deserialize, Serialize, FromRow)]
 pub struct CreateMovementRequest {
     pub printer_id: Uuid,
