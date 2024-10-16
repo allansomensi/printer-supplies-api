@@ -1710,7 +1710,7 @@
 									},
 									"response": [
 										{
-											"name": "count_all_movements",
+											"name": "count_movements",
 											"originalRequest": {
 												"method": "GET",
 												"header": [],
@@ -1832,7 +1832,7 @@
 									},
 									"response": [
 										{
-											"name": "show_all_movements",
+											"name": "show_movements",
 											"originalRequest": {
 												"method": "GET",
 												"header": [],
@@ -1859,15 +1859,15 @@
 												},
 												{
 													"key": "content-length",
-													"value": "204"
+													"value": "556"
 												},
 												{
 													"key": "date",
-													"value": "Wed, 16 Oct 2024 19:44:36 GMT"
+													"value": "Wed, 16 Oct 2024 20:19:18 GMT"
 												}
 											],
 											"cookie": [],
-											"body": "[\n    {\n        \"id\": \"6c5f8853-d486-4cf1-8c1b-8ab6a21b2bb1\",\n        \"printer_id\": \"de125179-07d7-47d2-93c4-9240c66dab5e\",\n        \"item_id\": \"37ee8793-233c-4371-9efc-09c4498b73d8\",\n        \"quantity\": 3,\n        \"created_at\": \"2024-10-16T19:43:46.770603Z\"\n    }\n]"
+											"body": "[\n    {\n        \"id\": \"d24b8484-a10d-4042-b350-a46b6f49def5\",\n        \"printer\": {\n            \"id\": \"de125179-07d7-47d2-93c4-9240c66dab5e\",\n            \"name\": \"Office\",\n            \"model\": \"DCP-L6527DW\"\n        },\n        \"item\": {\n            \"id\": \"37ee8793-233c-4371-9efc-09c4498b73d8\",\n            \"name\": \"TN-2340\",\n            \"stock\": 18\n        },\n        \"quantity\": 3,\n        \"created_at\": \"2024-10-16T20:03:25.323196Z\"\n    },\n    {\n        \"id\": \"4408a9bd-04eb-4f3d-a785-75583c2c942b\",\n        \"printer\": {\n            \"id\": \"de125179-07d7-47d2-93c4-9240c66dab5e\",\n            \"name\": \"Office\",\n            \"model\": \"DCP-L6527DW\"\n        },\n        \"item\": {\n            \"id\": \"37ee8793-233c-4371-9efc-09c4498b73d8\",\n            \"name\": \"TN-2340\",\n            \"stock\": 18\n        },\n        \"quantity\": 12,\n        \"created_at\": \"2024-10-16T20:18:06.282111Z\"\n    }\n]"
 										}
 									]
 								},
