@@ -92,7 +92,7 @@ pub async fn create_toner(
     {
         Ok(Some(_)) => {
             error!("Toner '{}' already exists.", &new_toner.name);
-            return (StatusCode::CONFLICT, Err(Json("Toner already exists.")));
+            (StatusCode::CONFLICT, Err(Json("Toner already exists.")))
         }
         Ok(None) => {
             // Name is empty
