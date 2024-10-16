@@ -192,7 +192,7 @@ pub async fn update_movement(
             match sqlx::query(
                 r#"UPDATE movements 
                     SET printer_id = $1,
-                        item_id = $2
+                        item_id = $2,
                         quantity = $3
                     WHERE id = $4;"#,
             )
