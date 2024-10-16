@@ -42,22 +42,21 @@ pub async fn search_printer(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    let printer: Result<
-        Option<(
-            Uuid,
-            String,
-            String,
-            Uuid,
-            String,
-            Uuid,
-            String,
-            i32,
-            Uuid,
-            String,
-            i32,
-        )>,
-        sqlx::Error,
-    > = sqlx::query_as(
+    type PrinterView = Option<(
+        Uuid,
+        String,
+        String,
+        Uuid,
+        String,
+        Uuid,
+        String,
+        i32,
+        Uuid,
+        String,
+        i32,
+    )>;
+
+    let printer: Result<PrinterView, sqlx::Error> = sqlx::query_as(
         r#"
         SELECT 
             p.id AS printer_id, 
@@ -119,22 +118,21 @@ pub async fn search_printer(
 }
 
 pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let printers: Result<
-        Vec<(
-            Uuid,
-            String,
-            String,
-            Uuid,
-            String,
-            Uuid,
-            String,
-            i32,
-            Uuid,
-            String,
-            i32,
-        )>,
-        sqlx::Error,
-    > = sqlx::query_as(
+    type PrintersView = Vec<(
+        Uuid,
+        String,
+        String,
+        Uuid,
+        String,
+        Uuid,
+        String,
+        i32,
+        Uuid,
+        String,
+        i32,
+    )>;
+
+    let printers: Result<PrintersView, sqlx::Error> = sqlx::query_as(
         r#"
         SELECT 
             p.id AS printer_id, 
