@@ -10,6 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::models::{
+    brand::Brand,
     database::AppState,
     printer::{CreatePrinterRequest, Printer, PrinterDetails, UpdatePrinterRequest},
     supplies::{drum::Drum, toner::Toner},
@@ -68,6 +69,7 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
             String,
             String,
             Uuid,
+            String,
             Uuid,
             String,
             i32,
@@ -82,7 +84,8 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
             p.id AS printer_id, 
             p.name AS printer_name, 
             p.model AS printer_model,
-            p.brand AS printer_brand, 
+            p.brand AS brand_id, 
+            b.name AS brand_name,
             p.toner AS toner_id, 
             t.name AS toner_name, 
             t.stock AS toner_stock,
@@ -92,6 +95,7 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
         FROM printers p
         JOIN toners t ON p.toner = t.id
         JOIN drums d ON p.drum = d.id
+        JOIN brands b ON p.brand = b.id
         "#,
     )
     .fetch_all(&state.db)
@@ -105,16 +109,19 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
                     id: row.0,
                     name: row.1,
                     model: row.2,
-                    brand: row.3,
+                    brand: Brand {
+                        id: row.3,
+                        name: row.4,
+                    },
                     toner: Toner {
-                        id: row.4,
-                        name: row.5,
-                        stock: row.6,
+                        id: row.5,
+                        name: row.6,
+                        stock: row.7,
                     },
                     drum: Drum {
-                        id: row.7,
-                        name: row.8,
-                        stock: row.9,
+                        id: row.8,
+                        name: row.9,
+                        stock: row.10,
                     },
                 })
                 .collect::<Vec<PrinterDetails>>();
