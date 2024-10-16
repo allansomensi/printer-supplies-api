@@ -42,12 +42,68 @@ pub async fn search_printer(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    match sqlx::query_as::<_, Printer>(r#"SELECT * FROM printers WHERE id = $1;"#)
-        .bind(id)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(printer)) => {
+    let printer: Result<
+        Option<(
+            Uuid,
+            String,
+            String,
+            Uuid,
+            String,
+            Uuid,
+            String,
+            i32,
+            Uuid,
+            String,
+            i32,
+        )>,
+        sqlx::Error,
+    > = sqlx::query_as(
+        r#"
+        SELECT 
+            p.id AS printer_id, 
+            p.name AS printer_name, 
+            p.model AS printer_model,
+            p.brand AS brand_id, 
+            b.name AS brand_name,
+            p.toner AS toner_id, 
+            t.name AS toner_name, 
+            t.stock AS toner_stock,
+            p.drum AS drum_id,
+            d.name AS drum_name, 
+            d.stock AS drum_stock
+        FROM printers p
+        JOIN toners t ON p.toner = t.id
+        JOIN drums d ON p.drum = d.id
+        JOIN brands b ON p.brand = b.id
+        WHERE p.id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await;
+
+    match printer {
+        Ok(Some(row)) => {
+            let printer = PrinterDetails {
+                id: row.0,
+                name: row.1,
+                model: row.2,
+                brand: Brand {
+                    id: row.3,
+                    name: row.4,
+                },
+                toner: Toner {
+                    id: row.5,
+                    name: row.6,
+                    stock: row.7,
+                },
+                drum: Drum {
+                    id: row.8,
+                    name: row.9,
+                    stock: row.10,
+                },
+            };
+
             info!("Printer found: {id}");
             (StatusCode::OK, Json(Some(printer)))
         }
