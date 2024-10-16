@@ -441,32 +441,9 @@ pub mod tests {
     // Count
 
     #[tokio::test]
-    pub async fn count_all_movements_endpoint() {
+    pub async fn count_movements_endpoint() {
         setup();
         let endpoint = format!("http://{}/api/v1/movement-count", var("HOST").unwrap());
-        let client = reqwest::Client::new();
-        let response = client.get(endpoint).send().await.unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    pub async fn count_toner_movements_endpoint() {
-        setup();
-        let endpoint = format!(
-            "http://{}/api/v1/movement-count/toner",
-            var("HOST").unwrap()
-        );
-        let client = reqwest::Client::new();
-        let response = client.get(endpoint).send().await.unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    pub async fn count_drum_movements_endpoint() {
-        setup();
-        let endpoint = format!("http://{}/api/v1/movement-count/drum", var("HOST").unwrap());
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
@@ -476,29 +453,9 @@ pub mod tests {
     // Show
 
     #[tokio::test]
-    pub async fn show_all_movements_endpoint() {
+    pub async fn show_movements_endpoint() {
         setup();
         let endpoint = format!("http://{}/api/v1/movements", var("HOST").unwrap());
-        let client = reqwest::Client::new();
-        let response = client.get(endpoint).send().await.unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    pub async fn show_toner_movements_endpoint() {
-        setup();
-        let endpoint = format!("http://{}/api/v1/movements/toner", var("HOST").unwrap());
-        let client = reqwest::Client::new();
-        let response = client.get(endpoint).send().await.unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    pub async fn show_drum_movements_endpoint() {
-        setup();
-        let endpoint = format!("http://{}/api/v1/movements/drum", var("HOST").unwrap());
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
@@ -511,7 +468,7 @@ pub mod tests {
         let body = r#"{
             "id": "4340c4a2-eac5-4b51-9baa-40b398605a8c",
             "printer_id": "4340c4a2-eac5-4b51-9baa-40b398605a8c",
-            "toner_id": "4340c4a2-eac5-4b51-9baa-40b498605a8c",
+            "item_id": "4340c4a2-eac5-4b51-9baa-40b498605a8c",
             "quantity": 7
         }"#;
 
