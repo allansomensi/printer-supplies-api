@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
+use super::supplies::{drum::Drum, toner::Toner};
+
 #[derive(Deserialize, Serialize, FromRow)]
 pub struct Printer {
     pub id: Uuid,
@@ -23,6 +25,16 @@ impl Printer {
             drum,
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct PrinterDetails {
+    pub id: Uuid,
+    pub name: String,
+    pub model: String,
+    pub brand: Uuid,
+    pub toner: Toner,
+    pub drum: Drum,
 }
 
 #[derive(Deserialize, Serialize)]
