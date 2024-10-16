@@ -11,7 +11,8 @@ use uuid::Uuid;
 
 use crate::models::{
     database::AppState,
-    printer::{CreatePrinterRequest, Printer, UpdatePrinterRequest},
+    printer::{CreatePrinterRequest, Printer, PrinterDetails, UpdatePrinterRequest},
+    supplies::{drum::Drum, toner::Toner},
     DeleteRequest,
 };
 
@@ -61,11 +62,63 @@ pub async fn search_printer(
 }
 
 pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let printers: Result<Vec<Printer>, sqlx::Error> = sqlx::query_as(r#"SELECT * FROM printers;"#)
-        .fetch_all(&state.db)
-        .await;
+    let printers: Result<
+        Vec<(
+            Uuid,
+            String,
+            String,
+            Uuid,
+            Uuid,
+            String,
+            i32,
+            Uuid,
+            String,
+            i32,
+        )>,
+        sqlx::Error,
+    > = sqlx::query_as(
+        r#"
+        SELECT 
+            p.id AS printer_id, 
+            p.name AS printer_name, 
+            p.model AS printer_model,
+            p.brand AS printer_brand, 
+            p.toner AS toner_id, 
+            t.name AS toner_name, 
+            t.stock AS toner_stock,
+            p.drum AS drum_id,
+            d.name AS drum_name, 
+            d.stock AS drum_stock
+        FROM printers p
+        JOIN toners t ON p.toner = t.id
+        JOIN drums d ON p.drum = d.id
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await;
+
     match printers {
-        Ok(printers) => {
+        Ok(rows) => {
+            let printers = rows
+                .into_iter()
+                .map(|row| PrinterDetails {
+                    id: row.0,
+                    name: row.1,
+                    model: row.2,
+                    brand: row.3,
+                    toner: Toner {
+                        id: row.4,
+                        name: row.5,
+                        stock: row.6,
+                    },
+                    drum: Drum {
+                        id: row.7,
+                        name: row.8,
+                        stock: row.9,
+                    },
+                })
+                .collect::<Vec<PrinterDetails>>();
+
             info!("Printers listed successfully");
             Ok(Json(printers))
         }
