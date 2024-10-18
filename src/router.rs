@@ -1,4 +1,5 @@
 use crate::{
+    config::Config,
     handlers::{
         brand, movement, printer, status,
         supplies::{drum, toner},
@@ -70,5 +71,6 @@ pub fn routes(state: Arc<AppState>) -> Router {
                 // Status
                 .route("/status", get(status::show_status)),
         )
+        .layer(Config::cors())
         .with_state(state)
 }
