@@ -6,6 +6,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use rust_decimal::Decimal;
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -43,17 +44,18 @@ pub async fn search_printer(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     type PrinterView = Option<(
-        Uuid,
-        String,
-        String,
-        Uuid,
-        String,
-        Uuid,
-        String,
-        i32,
-        Uuid,
-        String,
-        i32,
+        Uuid,            // printer_id
+        String,          // printer_name
+        String,          // printer_model
+        Uuid,            // brand_id
+        String,          // brand_name
+        Uuid,            // toner_id
+        String,          // toner_name
+        Option<i32>,     // toner_stock
+        Option<Decimal>, // toner_price
+        Uuid,            // drum_id
+        String,          // drum_name
+        i32,             // drum_stock
     )>;
 
     let printer: Result<PrinterView, sqlx::Error> = sqlx::query_as(
@@ -67,6 +69,7 @@ pub async fn search_printer(
             p.toner AS toner_id, 
             t.name AS toner_name, 
             t.stock AS toner_stock,
+            t.price AS toner_price,
             p.drum AS drum_id,
             d.name AS drum_name, 
             d.stock AS drum_stock
@@ -95,11 +98,12 @@ pub async fn search_printer(
                     id: row.5,
                     name: row.6,
                     stock: row.7,
+                    price: row.8,
                 },
                 drum: Drum {
-                    id: row.8,
-                    name: row.9,
-                    stock: row.10,
+                    id: row.9,
+                    name: row.10,
+                    stock: row.11,
                 },
             };
 
@@ -119,17 +123,18 @@ pub async fn search_printer(
 
 pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     type PrintersView = Vec<(
-        Uuid,
-        String,
-        String,
-        Uuid,
-        String,
-        Uuid,
-        String,
-        i32,
-        Uuid,
-        String,
-        i32,
+        Uuid,            // printer_id
+        String,          // printer_name
+        String,          // printer_model
+        Uuid,            // brand_id
+        String,          // brand_name
+        Uuid,            // toner_id
+        String,          // toner_name
+        Option<i32>,     // toner_stock
+        Option<Decimal>, // toner_price
+        Uuid,            // drum_id
+        String,          // drum_name
+        i32,             // drum_stock
     )>;
 
     let printers: Result<PrintersView, sqlx::Error> = sqlx::query_as(
@@ -143,6 +148,7 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
             p.toner AS toner_id, 
             t.name AS toner_name, 
             t.stock AS toner_stock,
+            t.price AS toner_price,
             p.drum AS drum_id,
             d.name AS drum_name, 
             d.stock AS drum_stock
@@ -171,11 +177,12 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
                         id: row.5,
                         name: row.6,
                         stock: row.7,
+                        price: row.8,
                     },
                     drum: Drum {
-                        id: row.8,
-                        name: row.9,
-                        stock: row.10,
+                        id: row.9,
+                        name: row.10,
+                        stock: row.11,
                     },
                 })
                 .collect::<Vec<PrinterDetails>>();
