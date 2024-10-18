@@ -83,9 +83,33 @@ pub async fn create_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateDrumRequest>,
 ) -> impl IntoResponse {
-    let new_drum = Drum::new(&request.name);
+    // Validations
 
-    // Check duplicate
+    // Name is empty
+    if request.name.is_empty() {
+        error!("Drum name cannot be empty.");
+        return (
+            StatusCode::BAD_REQUEST,
+            Err(Json("Drum name cannot be empty.")),
+        );
+    }
+    // Name too short
+    if request.name.len() < 4 {
+        error!("Drum name is too short.");
+        return (
+            StatusCode::BAD_REQUEST,
+            Err(Json("Drum name is too short.")),
+        );
+    }
+    // Name too long
+    if request.name.len() > 20 {
+        error!("Drum name is too long.");
+        return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
+    }
+
+    let new_drum = Drum::new(&request.name, request.stock, request.price);
+
+    // Check for duplicate drum name
     match sqlx::query(r#"SELECT id FROM drums WHERE name = $1;"#)
         .bind(&new_drum.name)
         .fetch_optional(&state.db)
@@ -96,38 +120,13 @@ pub async fn create_drum(
             (StatusCode::CONFLICT, Err(Json("Drum already exists.")))
         }
         Ok(None) => {
-            // Name is empty
-            if new_drum.name.is_empty() {
-                error!("Drum name cannot be empty.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Drum name cannot be empty.")),
-                );
-            }
-
-            // Name too short
-            if new_drum.name.len() < 4 {
-                error!("Drum name is too short.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Drum name is too short.")),
-                );
-            }
-
-            // Name too long
-            if new_drum.name.len() > 20 {
-                error!("Drum name is too long.");
-                return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
-            }
-
             match sqlx::query(
-                r#"
-                INSERT INTO drums (id, name)
-                VALUES ($1, $2)
-                "#,
+                r#"INSERT INTO drums (id, name, stock, price) VALUES ($1, $2, $3, $4);"#,
             )
             .bind(new_drum.id)
             .bind(&new_drum.name)
+            .bind(new_drum.stock)
+            .bind(new_drum.price)
             .execute(&state.db)
             .await
             {
@@ -156,7 +155,9 @@ pub async fn update_drum(
     Json(request): Json<UpdateDrumRequest>,
 ) -> impl IntoResponse {
     let drum_id = request.id;
-    let new_name = request.name;
+    let new_name = request.name.clone();
+    let new_stock = request.stock;
+    let new_price = request.price;
 
     // ID not found
     match sqlx::query(r#"SELECT id FROM drums WHERE id = $1;"#)
@@ -165,76 +166,102 @@ pub async fn update_drum(
         .await
     {
         Ok(Some(_)) => {
-            // Name is empty
-            if new_name.is_empty() {
-                error!("Drum name cannot be empty.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Drum name cannot be empty.")),
-                );
-            }
-
-            // Name too short
-            if new_name.len() < 4 {
-                error!("Drum name is too short.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Drum name is too short.")),
-                );
-            }
-
-            // Name too long
-            if new_name.len() > 20 {
-                error!("Drum name is too long.");
-                return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
-            }
-
-            // Check duplicate
-            match sqlx::query(r#"SELECT id FROM drums WHERE name = $1 AND id != $2;"#)
-                .bind(&new_name)
-                .bind(drum_id)
-                .fetch_optional(&state.db)
-                .await
-            {
-                Ok(Some(_)) => {
-                    error!("Drum name already exists.");
-                    (StatusCode::CONFLICT, Err(Json("Drum already exists.")))
+            if let Some(name) = new_name {
+                if name.is_empty() {
+                    error!("Drum name cannot be empty.");
+                    return (
+                        StatusCode::CONFLICT,
+                        Err(Json("Drum name cannot be empty.")),
+                    );
                 }
-                Ok(None) => {
-                    match sqlx::query(r#"UPDATE drums SET name = $1 WHERE id = $2;"#)
-                        .bind(&new_name)
-                        .bind(drum_id)
-                        .execute(&state.db)
-                        .await
-                    {
-                        Ok(_) => {
-                            info!("Drum updated! ID: {}", &drum_id);
-                            (StatusCode::OK, Ok(Json(drum_id)))
-                        }
-                        Err(e) => {
-                            error!("Error updating drum: {}", e);
-                            (
+
+                if name.len() < 4 {
+                    error!("Drum name is too short.");
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Err(Json("Drum name is too short.")),
+                    );
+                }
+
+                if name.len() > 20 {
+                    error!("Drum name is too long.");
+                    return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
+                }
+
+                // Check duplicate
+                match sqlx::query(r#"SELECT id FROM drums WHERE name = $1 AND id != $2;"#)
+                    .bind(&name)
+                    .bind(drum_id)
+                    .fetch_optional(&state.db)
+                    .await
+                {
+                    Ok(Some(_)) => {
+                        error!("Drum name already exists.");
+                        return (StatusCode::CONFLICT, Err(Json("Drum name already exists.")));
+                    }
+                    Ok(None) => {
+                        if let Err(e) = sqlx::query(r#"UPDATE drums SET name = $1 WHERE id = $2;"#)
+                            .bind(&name)
+                            .bind(drum_id)
+                            .execute(&state.db)
+                            .await
+                        {
+                            error!("Error updating drum name: {e}");
+                            return (
                                 StatusCode::INTERNAL_SERVER_ERROR,
-                                Err(Json("Error updating drum.")),
-                            )
+                                Err(Json("Error updating drum name.")),
+                            );
                         }
                     }
-                }
-                Err(e) => {
-                    error!("Error checking for duplicate drum name: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error checking for duplicated drum name.")),
-                    )
+                    Err(e) => {
+                        error!("Error checking for duplicate drum name: {e}");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Err(Json("Error checking for duplicated drum name.")),
+                        );
+                    }
                 }
             }
+
+            if let Some(stock) = new_stock {
+                if let Err(e) = sqlx::query(r#"UPDATE drums SET stock = $1 WHERE id = $2;"#)
+                    .bind(stock)
+                    .bind(drum_id)
+                    .execute(&state.db)
+                    .await
+                {
+                    error!("Error updating drum stock: {}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Err(Json("Error updating drum stock.")),
+                    );
+                }
+            }
+
+            if let Some(price) = new_price {
+                if let Err(e) = sqlx::query(r#"UPDATE drums SET price = $1 WHERE id = $2;"#)
+                    .bind(price)
+                    .bind(drum_id)
+                    .execute(&state.db)
+                    .await
+                {
+                    error!("Error updating drum price: {e}");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Err(Json("Error updating drum price.")),
+                    );
+                }
+            }
+
+            info!("Drum updated! ID: {}", &drum_id);
+            (StatusCode::OK, Ok(Json(drum_id)))
         }
         Ok(None) => {
             error!("Drum ID not found.");
             (StatusCode::NOT_FOUND, Err(Json("Drum ID not found.")))
         }
         Err(e) => {
-            error!("Error fetching drum by ID: {}", e);
+            error!("Error fetching drum by ID: {e}");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Err(Json("Error fetching drum by ID")),

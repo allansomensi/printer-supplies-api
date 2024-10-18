@@ -55,7 +55,8 @@ pub async fn search_printer(
         Option<Decimal>, // toner_price
         Uuid,            // drum_id
         String,          // drum_name
-        i32,             // drum_stock
+        Option<i32>,     // drum_stock
+        Option<Decimal>, // drum_price
     )>;
 
     let printer: Result<PrinterView, sqlx::Error> = sqlx::query_as(
@@ -72,7 +73,8 @@ pub async fn search_printer(
             t.price AS toner_price,
             p.drum AS drum_id,
             d.name AS drum_name, 
-            d.stock AS drum_stock
+            d.stock AS drum_stock,
+            d.price AS drum_price
         FROM printers p
         JOIN toners t ON p.toner = t.id
         JOIN drums d ON p.drum = d.id
@@ -104,6 +106,7 @@ pub async fn search_printer(
                     id: row.9,
                     name: row.10,
                     stock: row.11,
+                    price: row.12,
                 },
             };
 
@@ -134,7 +137,8 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
         Option<Decimal>, // toner_price
         Uuid,            // drum_id
         String,          // drum_name
-        i32,             // drum_stock
+        Option<i32>,     // drum_stock
+        Option<Decimal>, // drum_price
     )>;
 
     let printers: Result<PrintersView, sqlx::Error> = sqlx::query_as(
@@ -151,7 +155,8 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
             t.price AS toner_price,
             p.drum AS drum_id,
             d.name AS drum_name, 
-            d.stock AS drum_stock
+            d.stock AS drum_stock,
+            d.price AS drum_price
         FROM printers p
         JOIN toners t ON p.toner = t.id
         JOIN drums d ON p.drum = d.id
@@ -183,6 +188,7 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
                         id: row.9,
                         name: row.10,
                         stock: row.11,
+                        price: row.12,
                     },
                 })
                 .collect::<Vec<PrinterDetails>>();
