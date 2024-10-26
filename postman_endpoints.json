@@ -25,7 +25,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/supplies/drum-count",
+													"raw": "localhost:8000/api/v1/supplies/drums/count",
 													"host": [
 														"localhost"
 													],
@@ -34,7 +34,8 @@
 														"api",
 														"v1",
 														"supplies",
-														"drum-count"
+														"drums",
+														"count"
 													]
 												},
 												"description": "Provides the count of drums registered in the database."
@@ -46,7 +47,7 @@
 														"method": "GET",
 														"header": [],
 														"url": {
-															"raw": "localhost:8000/api/v1/supplies/drum-count",
+															"raw": "localhost:8000/api/v1/supplies/drums/count",
 															"host": [
 																"localhost"
 															],
@@ -55,7 +56,8 @@
 																"api",
 																"v1",
 																"supplies",
-																"drum-count"
+																"drums",
+																"count"
 															]
 														}
 													},
@@ -87,7 +89,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/supplies/drum/<drum_id>",
+													"raw": "localhost:8000/api/v1/supplies/drums/<drum_id>",
 													"host": [
 														"localhost"
 													],
@@ -96,7 +98,7 @@
 														"api",
 														"v1",
 														"supplies",
-														"drum",
+														"drums",
 														"<drum_id>"
 													]
 												},
@@ -109,7 +111,7 @@
 														"method": "GET",
 														"header": [],
 														"url": {
-															"raw": "localhost:8000/api/v1/supplies/drum/93148194-10bb-47aa-a699-f2b5d4634b7b",
+															"raw": "localhost:8000/api/v1/supplies/drums/93148194-10bb-47aa-a699-f2b5d4634b7b",
 															"host": [
 																"localhost"
 															],
@@ -118,7 +120,7 @@
 																"api",
 																"v1",
 																"supplies",
-																"drum",
+																"drums",
 																"93148194-10bb-47aa-a699-f2b5d4634b7b"
 															]
 														}
@@ -438,7 +440,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/supplies/toner-count",
+													"raw": "localhost:8000/api/v1/supplies/toners/count",
 													"host": [
 														"localhost"
 													],
@@ -447,7 +449,8 @@
 														"api",
 														"v1",
 														"supplies",
-														"toner-count"
+														"toners",
+														"count"
 													]
 												},
 												"description": "Provides the count of toners registered in the database."
@@ -459,7 +462,7 @@
 														"method": "GET",
 														"header": [],
 														"url": {
-															"raw": "localhost:8000/api/v1/supplies/toner-count",
+															"raw": "localhost:8000/api/v1/supplies/toners/count",
 															"host": [
 																"localhost"
 															],
@@ -468,7 +471,8 @@
 																"api",
 																"v1",
 																"supplies",
-																"toner-count"
+																"toners",
+																"count"
 															]
 														}
 													},
@@ -500,7 +504,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/supplies/toner/<toner_id>",
+													"raw": "localhost:8000/api/v1/supplies/toners/<toner_id>",
 													"host": [
 														"localhost"
 													],
@@ -509,7 +513,7 @@
 														"api",
 														"v1",
 														"supplies",
-														"toner",
+														"toners",
 														"<toner_id>"
 													]
 												},
@@ -522,7 +526,7 @@
 														"method": "GET",
 														"header": [],
 														"url": {
-															"raw": "localhost:8000/api/v1/supplies/toner/7ae8fb09-1282-4f82-b078-c3e5d4a83dba",
+															"raw": "localhost:8000/api/v1/supplies/toners/7ae8fb09-1282-4f82-b078-c3e5d4a83dba",
 															"host": [
 																"localhost"
 															],
@@ -531,7 +535,7 @@
 																"api",
 																"v1",
 																"supplies",
-																"toner",
+																"toners",
 																"7ae8fb09-1282-4f82-b078-c3e5d4a83dba"
 															]
 														}
@@ -657,7 +661,7 @@
 														"header": [],
 														"body": {
 															"mode": "raw",
-															"raw": "{\n  \"name\": \"TN-2340\"\n}\n",
+															"raw": "{\n  \"name\": \"TN-315\",\n  \"stock\": 2\n}\n",
 															"options": {
 																"raw": {
 																	"language": "json"
@@ -733,7 +737,7 @@
 														"header": [],
 														"body": {
 															"mode": "raw",
-															"raw": "{\n    \"id\": \"c1f4d3e1-20d7-4751-82dd-6e542cdeddd2\",\n    \"name\": \"TN-2340\"\n}",
+															"raw": "{\n    \"id\": \"dcb36307-2be1-44a8-81b2-ee5b2affb2c4\",\n    \"name\": \"TN-2340\",\n    \"stock\": 2\n}",
 															"options": {
 																"raw": {
 																	"language": "json"
@@ -863,7 +867,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "localhost:8000/api/v1/brand-count",
+											"raw": "localhost:8000/api/v1/brands/count",
 											"host": [
 												"localhost"
 											],
@@ -871,7 +875,8 @@
 											"path": [
 												"api",
 												"v1",
-												"brand-count"
+												"brands",
+												"count"
 											]
 										},
 										"description": "Provides the count of brands registered in the database."
@@ -883,7 +888,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/brand-count",
+													"raw": "localhost:8000/api/v1/brands/count",
 													"host": [
 														"localhost"
 													],
@@ -891,7 +896,8 @@
 													"path": [
 														"api",
 														"v1",
-														"brand-count"
+														"brands",
+														"count"
 													]
 												}
 											},
@@ -923,7 +929,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "localhost:8000/api/v1/brand/<brand_id>",
+											"raw": "localhost:8000/api/v1/brands/<brand_id>",
 											"host": [
 												"localhost"
 											],
@@ -931,7 +937,7 @@
 											"path": [
 												"api",
 												"v1",
-												"brand",
+												"brands",
 												"<brand_id>"
 											]
 										},
@@ -944,7 +950,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/brand/0a343d86-1f9b-470d-a373-203a0634fdae",
+													"raw": "localhost:8000/api/v1/brands/0a343d86-1f9b-470d-a373-203a0634fdae",
 													"host": [
 														"localhost"
 													],
@@ -952,7 +958,7 @@
 													"path": [
 														"api",
 														"v1",
-														"brand",
+														"brands",
 														"0a343d86-1f9b-470d-a373-203a0634fdae"
 													]
 												}
@@ -1273,7 +1279,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "localhost:8000/api/v1/printer-count",
+											"raw": "localhost:8000/api/v1/printers/count",
 											"host": [
 												"localhost"
 											],
@@ -1281,7 +1287,8 @@
 											"path": [
 												"api",
 												"v1",
-												"printer-count"
+												"printers",
+												"count"
 											]
 										},
 										"description": "Provides the count of printers registered in the database."
@@ -1293,7 +1300,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/printer-count",
+													"raw": "localhost:8000/api/v1/printers/count",
 													"host": [
 														"localhost"
 													],
@@ -1301,7 +1308,8 @@
 													"path": [
 														"api",
 														"v1",
-														"printer-count"
+														"printers",
+														"count"
 													]
 												}
 											},
@@ -1333,7 +1341,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "localhost:8000/api/v1/printer/<printer_id>",
+											"raw": "localhost:8000/api/v1/printers/<printer_id>",
 											"host": [
 												"localhost"
 											],
@@ -1341,7 +1349,7 @@
 											"path": [
 												"api",
 												"v1",
-												"printer",
+												"printers",
 												"<printer_id>"
 											]
 										},
@@ -1354,7 +1362,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/printer/700d6252-6b49-4337-918e-d8b880ff8c9e",
+													"raw": "localhost:8000/api/v1/printers/700d6252-6b49-4337-918e-d8b880ff8c9e",
 													"host": [
 														"localhost"
 													],
@@ -1362,7 +1370,7 @@
 													"path": [
 														"api",
 														"v1",
-														"printer",
+														"printers",
 														"700d6252-6b49-4337-918e-d8b880ff8c9e"
 													]
 												}
@@ -1695,7 +1703,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "localhost:8000/api/v1/movement-count",
+											"raw": "localhost:8000/api/v1/movements/count",
 											"host": [
 												"localhost"
 											],
@@ -1703,7 +1711,8 @@
 											"path": [
 												"api",
 												"v1",
-												"movement-count"
+												"movements",
+												"count"
 											]
 										},
 										"description": "Provides the count of all movements registered in the database."
@@ -1715,7 +1724,7 @@
 												"method": "GET",
 												"header": [],
 												"url": {
-													"raw": "localhost:8000/api/v1/movement-count",
+													"raw": "localhost:8000/api/v1/movements/count",
 													"host": [
 														"localhost"
 													],
@@ -1723,7 +1732,8 @@
 													"path": [
 														"api",
 														"v1",
-														"movement-count"
+														"movements",
+														"count"
 													]
 												}
 											},
