@@ -4,7 +4,7 @@ mod config;
 mod handlers;
 mod logger;
 mod models;
-mod router;
+mod routes;
 mod server;
 
 #[tokio::main]

@@ -3,7 +3,7 @@ use std::{env, sync::Arc};
 use sqlx::PgPool;
 use tracing::{error, info};
 
-use crate::{models::database::AppState, router};
+use crate::{models::database::AppState, routes};
 
 pub async fn run() -> Result<(), axum::Error> {
     let database_url = std::env::var("DATABASE_URL").unwrap();
@@ -18,7 +18,7 @@ pub async fn run() -> Result<(), axum::Error> {
         }
     };
 
-    let app = router::routes(Arc::new(AppState { db: pool.clone() }));
+    let app = routes::create_routes(Arc::new(AppState { db: pool.clone() }));
 
     let addr = env::var("HOST").expect("Erro ao carregar env HOST");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
