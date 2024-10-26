@@ -22,7 +22,7 @@ pub mod tests {
     pub async fn toner_count_endpoint() {
         setup();
         let endpoint = format!(
-            "http://{}/api/v1/supplies/toner-count",
+            "http://{}/api/v1/supplies/toners/count",
             var("HOST").unwrap()
         );
         let client = reqwest::Client::new();
@@ -35,7 +35,7 @@ pub mod tests {
     pub async fn toner_search_endpoint() {
         setup();
         let endpoint = format!(
-            "http://{}/api/v1/supplies/toner/4340c4a2-eac5-4b51-9baa-40b498605a8c",
+            "http://{}/api/v1/supplies/toners/4340c4a2-eac5-4b51-9baa-40b498605a8c",
             var("HOST").unwrap()
         );
         let client = reqwest::Client::new();
@@ -127,7 +127,10 @@ pub mod tests {
     #[tokio::test]
     pub async fn drum_count_endpoint() {
         setup();
-        let endpoint = format!("http://{}/api/v1/supplies/drum-count", var("HOST").unwrap());
+        let endpoint = format!(
+            "http://{}/api/v1/supplies/drums/count",
+            var("HOST").unwrap()
+        );
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
@@ -229,7 +232,7 @@ pub mod tests {
     #[tokio::test]
     pub async fn brand_count_endpoint() {
         setup();
-        let endpoint = format!("http://{}/api/v1/brand-count", var("HOST").unwrap());
+        let endpoint = format!("http://{}/api/v1/brands/count", var("HOST").unwrap());
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
@@ -331,7 +334,7 @@ pub mod tests {
     #[tokio::test]
     pub async fn printer_count_endpoint() {
         setup();
-        let endpoint = format!("http://{}/api/v1/printer-count", var("HOST").unwrap());
+        let endpoint = format!("http://{}/api/v1/printers/count", var("HOST").unwrap());
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
@@ -443,7 +446,7 @@ pub mod tests {
     #[tokio::test]
     pub async fn count_movements_endpoint() {
         setup();
-        let endpoint = format!("http://{}/api/v1/movement-count", var("HOST").unwrap());
+        let endpoint = format!("http://{}/api/v1/movements/count", var("HOST").unwrap());
         let client = reqwest::Client::new();
         let response = client.get(endpoint).send().await.unwrap();
 
