@@ -10,10 +10,10 @@ async fn main() {
 
     match config::Config::init() {
         Ok(_) => {
-            tracing::info!("✅ Configurações carregadas!");
+            tracing::info!("✅ Configurations loaded!");
         }
         Err(e) => {
-            tracing::error!("Não foi possível carregar as configurações: {:?}", e);
+            tracing::error!("❌ Error loading configurations: {:?}", e);
             std::process::exit(1);
         }
     }

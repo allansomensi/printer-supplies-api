@@ -1,33 +1,31 @@
 use std::{env, sync::Arc};
-
-use sqlx::PgPool;
 use tracing::{error, info};
 
 use crate::{models::database::AppState, routes};
 
 pub async fn run() -> Result<(), axum::Error> {
     let database_url = std::env::var("DATABASE_URL").unwrap();
-    let pool = match PgPool::connect(&database_url).await {
+    let pool = match sqlx::PgPool::connect(&database_url).await {
         Ok(pool) => {
-            info!("✅ Conectado ao banco de dados");
+            info!("✅ Connected to the database");
             pool
         }
         Err(e) => {
-            error!("❌ Erro ao se conectar ao banco de dados: {e}");
+            error!("❌ Error connecting to the database: {e}");
             std::process::exit(1);
         }
     };
 
     let app = routes::create_routes(Arc::new(AppState { db: pool.clone() }));
 
-    let addr = env::var("HOST").expect("Erro ao carregar env HOST");
+    let addr = env::var("HOST").expect("Error loading HOST");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(listener) => {
-            info!("✅ Servidor iniciado em {}", &addr);
+            info!("✅ Server started at: {}", &addr);
             listener
         }
         Err(e) => {
-            error!("❌ Erro ao iniciar o servidor: {e}");
+            error!("❌ Error starting the server: {e}");
             std::process::exit(1)
         }
     };
