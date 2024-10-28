@@ -1,4 +1,5 @@
 pub mod brands;
+pub mod migrations;
 pub mod movements;
 pub mod printers;
 pub mod status;
@@ -14,6 +15,7 @@ pub fn create_routes(state: Arc<AppState>) -> Router {
             "/api/v1",
             Router::new()
                 .nest("/status", status::create_routes(state.clone()))
+                .nest("/migrations", migrations::create_routes(state.clone()))
                 .nest("/printers", printers::create_routes(state.clone()))
                 .nest("/supplies", supplies::create_routes(state.clone()))
                 .nest("/movements", movements::create_routes(state.clone()))
