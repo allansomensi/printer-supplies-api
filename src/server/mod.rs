@@ -1,10 +1,11 @@
-use std::{env, sync::Arc};
+use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::{models::database::AppState, routes};
 
 pub async fn run() -> Result<(), axum::Error> {
-    let database_url = std::env::var("DATABASE_URL").unwrap();
+    let database_url = std::env::var("DATABASE_URL").expect("Failed to load DATABASE_URL");
+
     let pool = match sqlx::PgPool::connect(&database_url).await {
         Ok(pool) => {
             info!("✅ Connected to the database");
@@ -18,7 +19,7 @@ pub async fn run() -> Result<(), axum::Error> {
 
     let app = routes::create_routes(Arc::new(AppState { db: pool.clone() }));
 
-    let addr = env::var("HOST").expect("Error loading HOST");
+    let addr = std::env::var("HOST").expect("Failed to load HOST");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(listener) => {
             info!("✅ Server started at: {}", &addr);
@@ -30,6 +31,8 @@ pub async fn run() -> Result<(), axum::Error> {
         }
     };
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .await
+        .expect("Error starting the server");
     Ok(())
 }
