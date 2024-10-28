@@ -8,7 +8,6 @@ mod server;
 async fn main() {
     println!("🌟 Printer Supplies API 🌟");
 
-    config::Config::logger_init();
     match config::Config::init() {
         Ok(_) => {
             tracing::info!("✅ Configurações carregadas!");

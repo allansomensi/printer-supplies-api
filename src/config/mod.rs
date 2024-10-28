@@ -19,6 +19,7 @@ pub struct Config {}
 
 impl Config {
     pub fn init() -> Result<(), ConfigError> {
+        Self::logger_init();
         dotenvy::dotenv()?;
         Ok(())
     }
