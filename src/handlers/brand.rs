@@ -226,7 +226,7 @@ pub async fn create_brand(
 /// Updates an existing brand.
 ///
 /// This endpoint updates the details of an existing brand.
-/// It accepts the brand ID and the new details for the brand, including its name, stock, and price.
+/// It accepts the brand ID and the new details for the brand.
 /// The endpoint validates the new name to ensure it is not empty,
 /// does not conflict with an existing brand's name, and meets length requirements.
 /// If the brand is successfully updated, it returns the UUID of the updated brand.
