@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, FromRow)]
@@ -24,7 +25,7 @@ impl Movement {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct MovementDetails {
     pub id: Uuid,
     pub printer: PrinterDetails,
@@ -33,28 +34,28 @@ pub struct MovementDetails {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ItemDetails {
     pub id: Uuid,
     pub name: String,
     pub stock: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct PrinterDetails {
     pub id: Uuid,
     pub name: String,
     pub model: String,
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, ToSchema)]
 pub struct CreateMovementRequest {
     pub printer_id: Uuid,
     pub item_id: Uuid,
     pub quantity: i32,
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, ToSchema)]
 pub struct UpdateMovementRequest {
     pub id: Uuid,
     pub printer_id: Uuid,

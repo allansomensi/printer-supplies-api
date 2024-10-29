@@ -19,6 +19,21 @@ use crate::models::{
     DeleteRequest,
 };
 
+/// Retrieves the total count of movements.
+///
+/// This endpoint counts all movements stored in the database and returns the count as an integer.
+/// If no movements are found, 0 is returned.
+#[utoipa::path(
+    get,
+    path = "/api/v1/movements/count",
+    tags = ["Movements"],
+    summary = "Get the total count of movements.",
+    description = "This endpoint retrieves the total number of movements stored in the database.",
+    responses(
+        (status = 200, description = "Movement count retrieved successfully", body = i32),
+        (status = 500, description = "An error occurred while retrieving the movement count")
+    )
+)]
 pub async fn count_movements(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let movement_count: Result<(i32,), sqlx::Error> =
         sqlx::query_as(r#"SELECT COUNT(*)::int FROM movements;"#)
@@ -40,6 +55,25 @@ pub async fn count_movements(State(state): State<Arc<AppState>>) -> impl IntoRes
     }
 }
 
+/// Retrieves a specific movement by its ID.
+///
+/// This endpoint searches for a movement with the specified ID.
+/// If the movement is found, it returns the movement details.
+#[utoipa::path(
+    get,
+    path = "/api/v1/movements/{id}",
+    tags = ["Movements"],
+    summary = "Get a specific movement by ID.",
+    description = "This endpoint retrieves a movement's details from the database using its ID. Returns the movement if found, or a 404 status if not found.",
+    params(
+        ("id", description = "The unique identifier of the movement to retrieve", example = "550e8400-e29b-41d4-a716-446655440000")
+    ),
+    responses(
+        (status = 200, description = "Movement retrieved successfully", body = MovementDetails),
+        (status = 404, description = "No movement found with the specified ID"),
+        (status = 500, description = "An error occurred while retrieving the movement")
+    )
+)]
 pub async fn search_movement(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -64,6 +98,22 @@ pub async fn search_movement(
     }
 }
 
+/// Retrieves a list of all movements.
+///
+/// This endpoint fetches all movements stored in the database.
+/// If there are no movements, returns an empty array.
+#[utoipa::path(
+    get,
+    path = "/api/v1/movements",
+    tags = ["Movements"],
+    summary = "List all movements.",
+    description = "Fetches all movements stored in the database. If there are no movements, returns an empty array.",
+    responses(
+        (status = 200, description = "Movements retrieved successfully", body = Vec<MovementDetails>),
+        (status = 404, description = "No movements found in the database"),
+        (status = 500, description = "An error occurred while retrieving the movements")
+    )
+)]
 pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     type MovementView = Vec<(
         Uuid,
@@ -140,6 +190,23 @@ pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResp
         }
     }
 }
+
+/// Create a new movement.
+///
+/// This endpoint creates a new movement by providing its details.
+#[utoipa::path(
+    post,
+    path = "/api/v1/movements",
+    tags = ["Movements"],
+    summary = "Create a new movement.",
+    description = "This endpoint creates a new movement in the database with the provided details.",
+    request_body = CreateMovementRequest,
+    responses(
+        (status = 201, description = "Movement created successfully", body = Uuid),
+        (status = 400, description = "Invalid input"),
+        (status = 500, description = "An error occurred while creating the movement")
+    )
+)]
 pub async fn create_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateMovementRequest>,
@@ -233,6 +300,25 @@ pub async fn create_movement(
     }
 }
 
+/// Updates an existing movement.
+///
+/// This endpoint updates the details of an existing movement.
+/// It accepts the movement ID and the new details for the movement.
+/// If the movement is successfully updated, it returns the UUID of the updated movement.
+#[utoipa::path(
+    put,
+    path = "/api/v1/movements",
+    tags = ["Movements"],
+    summary = "Update an existing movement.",
+    description = "This endpoint updates the details of an existing movement in the database.",
+    request_body = UpdateMovementRequest,
+    responses(
+        (status = 200, description = "Movement updated successfully", body = Uuid),
+        (status = 400, description = "Invalid input"),
+        (status = 404, description = "Movement ID not found"),
+        (status = 500, description = "An error occurred while updating the movement")
+    )
+)]
 pub async fn update_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateMovementRequest>,
@@ -290,6 +376,24 @@ pub async fn update_movement(
     }
 }
 
+/// Deletes an existing movement.
+///
+/// This endpoint allows users to delete a specific movement by its ID.
+/// It checks if the movement exists before attempting to delete it.
+/// If the movement is successfully deleted, a confirmation message is returned.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/movements",
+    tags = ["Movements"],
+    summary = "Delete an existing movement.",
+    description = "This endpoint deletes a specific movement from the database using its ID.",
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "Movement deleted successfully", body = String),
+        (status = 404, description = "Movement ID not found"),
+        (status = 500, description = "An error occurred while deleting the movement")
+    )
+)]
 pub async fn delete_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
