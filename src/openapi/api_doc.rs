@@ -5,7 +5,7 @@ use crate::models::status::Status;
 use crate::models::supplies::drum::Drum;
 use crate::{
     handlers::{
-        brand, movement, printer, status,
+        brand, migrations, movement, printer, status,
         supplies::{drum, toner},
     },
     models::supplies::toner::Toner,
@@ -22,6 +22,9 @@ use crate::{
     paths(
         // Status
         status::show_status,
+
+        // Migrations
+        migrations::live_run,
 
         // Toner
         toner::count_toners,
@@ -69,6 +72,7 @@ use crate::{
     ),
     tags(
         (name = "Status", description = "Status endpoints"),
+        (name = "Migrations", description = "Migrations endpoints"),
         (name = "Toners", description = "Toners endpoints"),
         (name = "Drums", description = "Drums endpoints"),
         (name = "Brands", description = "Brands endpoints"),
