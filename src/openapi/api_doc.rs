@@ -1,5 +1,6 @@
-use crate::handlers::status;
+use crate::handlers::{status, supplies::drum};
 use crate::models::status::Status;
+use crate::models::supplies::drum::Drum;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -10,13 +11,23 @@ use crate::models::status::Status;
         license(name = "MIT", identifier = "MIT")
     ),
     paths(
+        // Status
         status::show_status,
+
+        // Drum
+        drum::count_drums,
+        drum::search_drum,
+        drum::show_drums,
+        drum::create_drum,
+        drum::update_drum,
+        drum::delete_drum,
     ),
     components(
-        schemas(Status)
+        schemas(Status, Drum)
     ),
     tags(
-        (name = "Status", description = "Status endpoints")
+        (name = "Status", description = "Status endpoints"),
+        (name = "Drums", description = "Drums endpoints"),
     )
 )]
 pub struct ApiDoc;
