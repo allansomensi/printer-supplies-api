@@ -15,6 +15,21 @@ use crate::models::{
     DeleteRequest,
 };
 
+/// Retrieves the total count of drums.
+///
+/// This endpoint counts all drums stored in the database and returns the count as an integer.
+/// If no drums are found, 0 is returned.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/drums/count",
+    tags = ["Drums"],
+    summary = "Get the total count of drums.",
+    description = "This endpoint retrieves the total number of drums stored in the database.",
+    responses(
+        (status = 200, description = "Drum count retrieved successfully", body = i32),
+        (status = 500, description = "An error occurred while retrieving the drum count")
+    )
+)]
 pub async fn count_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let drum_count: Result<(i32,), sqlx::Error> =
         sqlx::query_as(r#"SELECT COUNT(*)::int FROM drums;"#)
@@ -36,6 +51,25 @@ pub async fn count_drums(State(state): State<Arc<AppState>>) -> impl IntoRespons
     }
 }
 
+/// Retrieves a specific drum by its ID.
+///
+/// This endpoint searches for a drum with the specified ID.
+/// If the drum is found, it returns the drum details.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/drums/{id}",
+    tags = ["Drums"],
+    summary = "Get a specific drum by ID.",
+    description = "This endpoint retrieves a drum's details from the database using its ID. Returns the drum if found, or a 404 status if not found.",
+    params(
+        ("id", description = "The unique identifier of the drum to retrieve", example = "550e8400-e29b-41d4-a716-446655440000")
+    ),
+    responses(
+        (status = 200, description = "Drum retrieved successfully", body = Drum),
+        (status = 404, description = "No drum found with the specified ID"),
+        (status = 500, description = "An error occurred while retrieving the drum")
+    )
+)]
 pub async fn search_drum(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -60,6 +94,22 @@ pub async fn search_drum(
     }
 }
 
+/// Retrieves a list of all drums.
+///
+/// This endpoint fetches all drums stored in the database.
+/// If there are no drums, returns an empty array.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/drums",
+    tags = ["Drums"],
+    summary = "List all drums.",
+    description = "Fetches all drums stored in the database. If there are no drums, returns an empty array.",
+    responses(
+        (status = 200, description = "Drums retrieved successfully", body = Vec<Drum>),
+        (status = 404, description = "No drums found in the database"),
+        (status = 500, description = "An error occurred while retrieving the drums")
+    )
+)]
 pub async fn show_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let drums: Result<Vec<Drum>, sqlx::Error> = sqlx::query_as(r#"SELECT * FROM drums;"#)
         .fetch_all(&state.db)
@@ -79,6 +129,25 @@ pub async fn show_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse
     }
 }
 
+/// Create a new drum.
+///
+/// This endpoint creates a new drum by providing its details.
+/// Validates the drum's name for length and emptiness, checks for duplicates,
+/// and inserts the new drum into the database if all validations pass.
+#[utoipa::path(
+    post,
+    path = "/api/v1/supplies/drums",
+    tags = ["Drums"],
+    summary = "Create a new drum.",
+    description = "This endpoint creates a new drum in the database with the provided details.",
+    request_body = CreateDrumRequest,
+    responses(
+        (status = 201, description = "Drum created successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 409, description = "Conflict: Drum with the same name already exists"),
+        (status = 500, description = "An error occurred while creating the drum")
+    )
+)]
 pub async fn create_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateDrumRequest>,
@@ -150,6 +219,28 @@ pub async fn create_drum(
     }
 }
 
+/// Updates an existing drum.
+///
+/// This endpoint updates the details of an existing drum.
+/// It accepts the drum ID and the new details for the drum, including its name, stock, and price.
+/// The endpoint validates the new name to ensure it is not empty,
+/// does not conflict with an existing drum's name, and meets length requirements.
+/// If the drum is successfully updated, it returns the UUID of the updated drum.
+#[utoipa::path(
+    put,
+    path = "/api/v1/supplies/drums",
+    tags = ["Drums"],
+    summary = "Update an existing drum.",
+    description = "This endpoint updates the details of an existing drum in the database.",
+    request_body = UpdateDrumRequest,
+    responses(
+        (status = 200, description = "Drum updated successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 404, description = "Drum ID not found"),
+        (status = 409, description = "Conflict: Drum with the same name already exists"),
+        (status = 500, description = "An error occurred while updating the drum")
+    )
+)]
 pub async fn update_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateDrumRequest>,
@@ -270,6 +361,24 @@ pub async fn update_drum(
     }
 }
 
+/// Deletes an existing drum.
+///
+/// This endpoint allows users to delete a specific drum by its ID.
+/// It checks if the drum exists before attempting to delete it.
+/// If the drum is successfully deleted, a confirmation message is returned.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/supplies/drums",
+    tags = ["Drums"],
+    summary = "Delete an existing drum.",
+    description = "This endpoint deletes a specific drum from the database using its ID.",
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "Drum deleted successfully", body = String),
+        (status = 404, description = "Drum ID not found"),
+        (status = 500, description = "An error occurred while deleting the drum")
+    )
+)]
 pub async fn delete_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
