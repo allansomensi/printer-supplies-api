@@ -14,7 +14,7 @@ use crate::models::{
 /// Useful for health checks and monitoring API dependencies.
 #[utoipa::path(
     get,
-    path = "/status",
+    path = "/api/v1/status",
     tags = ["Status"],
     summary = "Get API and database status",
     description = "Fetches the current operational status of the API, including database information such as version, max connections, and active connections.",
