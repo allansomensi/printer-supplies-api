@@ -1,3 +1,6 @@
+use crate::handlers::status;
+use crate::models::status::Status;
+
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
@@ -6,8 +9,14 @@
         contact(name = "Allan Somensi", email = "allansomensidev@gmail.com"),
         license(name = "MIT", identifier = "MIT")
     ),
-    paths(),
-    components(),
-    tags()
+    paths(
+        status::show_status,
+    ),
+    components(
+        schemas(Status)
+    ),
+    tags(
+        (name = "Status", description = "Status endpoints")
+    )
 )]
 pub struct ApiDoc;
