@@ -8,15 +8,15 @@ A **REST API** using **Axum** for managing **printer supplies**, such as toners 
 - **SQLx:** For interaction with the database and migrations.
 - **Just:** For utility scripts.
 - **Docker:** For database container.
-- **Postman:** API documentation.
+- **Swagger:** API documentation.
 
 ## Features
 
-- CRUD operations for printers, brands, drums, and toners.
+- CRUD operations for movements, printers, brands, drums, and toners.
 - Inventory management for toners and drums.
 - Docker Compose setup for easy deployment.
 - Database migrations included.
-- API documentation available in Postman.
+- API documentation available with Swagger UI.
 
 ---
 
@@ -73,8 +73,10 @@ just test-watch
 
 > Endpoint tests are located at `/tests` folder
 
-![Test Status](https://github.com/user-attachments/assets/fff6aff7-45d7-4801-8d5b-7b7768853ee1)
+![Test Status](https://github.com/user-attachments/assets/9f6627c5-ae2d-42d5-8362-676330031027)
 
 ## API Documentation 📚
 
-API endpoints and usage details are documented in **Postman**, you can import the `postman_endpoints.json` file.
+API endpoints and usage details are documented using `Swagger UI` and `OpenAPI` with `Utoipa`.
+
+The full documentation is available in the `openapi.json` file, which can be accessed and imported as needed. Run the application and navigate to `/swagger-ui` to view the interactive Swagger documentation.
