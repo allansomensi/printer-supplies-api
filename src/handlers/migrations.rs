@@ -5,7 +5,7 @@ use tracing::{error, info};
 
 use crate::models::database::AppState;
 
-pub async fn dry_run() -> impl IntoResponse {
+pub async fn dry_run() {
     todo!("Dry run mode is planned but has not been implemented yet.");
 }
 
