@@ -1,10 +1,11 @@
 use crate::models::brand::Brand;
+use crate::models::movement::MovementDetails;
 use crate::models::printer::PrinterDetails;
 use crate::models::status::Status;
 use crate::models::supplies::drum::Drum;
 use crate::{
     handlers::{
-        brand, printer, status,
+        brand, movement, printer, status,
         supplies::{drum, toner},
     },
     models::supplies::toner::Toner,
@@ -54,9 +55,17 @@ use crate::{
         printer::update_printer,
         printer::delete_printer,
 
+        // Movements
+        movement::count_movements,
+        movement::search_movement,
+        movement::show_movements,
+        movement::create_movement,
+        movement::update_movement,
+        movement::delete_movement,
+
     ),
     components(
-        schemas(Status, Drum, Toner, Brand, PrinterDetails)
+        schemas(Status, Drum, Toner, Brand, PrinterDetails, MovementDetails)
     ),
     tags(
         (name = "Status", description = "Status endpoints"),
@@ -64,6 +73,7 @@ use crate::{
         (name = "Drums", description = "Drums endpoints"),
         (name = "Brands", description = "Brands endpoints"),
         (name = "Printers", description = "Printers endpoints"),
+        (name = "Movements", description = "Movements endpoints"),
     )
 )]
 pub struct ApiDoc;
