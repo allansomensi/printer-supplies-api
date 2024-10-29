@@ -9,6 +9,19 @@ use crate::models::{
     status::{Database, Dependencies, Status},
 };
 
+/// Retrieves the current status of the API, including the database connection status.
+/// Provides information on the database version, maximum connections, and currently open connections.
+/// Useful for health checks and monitoring API dependencies.
+#[utoipa::path(
+    get,
+    path = "/status",
+    tags = ["Status"],
+    summary = "Get API and database status",
+    description = "Fetches the current operational status of the API, including database information such as version, max connections, and active connections.",
+    responses(
+        (status = 200, description = "Status retrieved successfully", body = Status)
+    )
+)]
 pub async fn show_status(State(state): State<Arc<AppState>>) -> Json<Status> {
     let db_version: (String,) = sqlx::query_as(r#"SHOW server_version;"#)
         .fetch_one(&state.db)
