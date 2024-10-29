@@ -18,6 +18,21 @@ use crate::models::{
     DeleteRequest,
 };
 
+/// Retrieves the total count of printers.
+///
+/// This endpoint counts all printers stored in the database and returns the count as an integer.
+/// If no printers are found, 0 is returned.
+#[utoipa::path(
+    get,
+    path = "/api/v1/printers/count",
+    tags = ["Printers"],
+    summary = "Get the total count of printers.",
+    description = "This endpoint retrieves the total number of printers stored in the database.",
+    responses(
+        (status = 200, description = "Printer count retrieved successfully", body = i32),
+        (status = 500, description = "An error occurred while retrieving the printer count")
+    )
+)]
 pub async fn count_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let printer_count: Result<(i32,), sqlx::Error> =
         sqlx::query_as(r#"SELECT COUNT(*)::int FROM printers;"#)
@@ -39,6 +54,25 @@ pub async fn count_printers(State(state): State<Arc<AppState>>) -> impl IntoResp
     }
 }
 
+/// Retrieves a specific printer by its ID.
+///
+/// This endpoint searches for a printer with the specified ID.
+/// If the printer is found, it returns the printer details.
+#[utoipa::path(
+    get,
+    path = "/api/v1/printers/{id}",
+    tags = ["Printers"],
+    summary = "Get a specific printer by ID.",
+    description = "This endpoint retrieves a printer's details from the database using its ID. Returns the printer if found, or a 404 status if not found.",
+    params(
+        ("id", description = "The unique identifier of the printer to retrieve", example = "550e8400-e29b-41d4-a716-446655440000")
+    ),
+    responses(
+        (status = 200, description = "Printer retrieved successfully", body = PrinterDetails),
+        (status = 404, description = "No printer found with the specified ID"),
+        (status = 500, description = "An error occurred while retrieving the printer")
+    )
+)]
 pub async fn search_printer(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -124,6 +158,22 @@ pub async fn search_printer(
     }
 }
 
+/// Retrieves a list of all printers.
+///
+/// This endpoint fetches all printers stored in the database.
+/// If there are no printers, returns an empty array.
+#[utoipa::path(
+    get,
+    path = "/api/v1/printers",
+    tags = ["Printers"],
+    summary = "List all printers.",
+    description = "Fetches all printers stored in the database. If there are no printers, returns an empty array.",
+    responses(
+        (status = 200, description = "Printers retrieved successfully", body = Vec<PrinterDetails>),
+        (status = 404, description = "No printers found in the database"),
+        (status = 500, description = "An error occurred while retrieving the printers")
+    )
+)]
 pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     type PrintersView = Vec<(
         Uuid,            // printer_id
@@ -206,6 +256,25 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
     }
 }
 
+/// Create a new printer.
+///
+/// This endpoint creates a new printer by providing its details.
+/// Validates the printer's name for length and emptiness, checks for duplicates,
+/// and inserts the new printer into the database if all validations pass.
+#[utoipa::path(
+    post,
+    path = "/api/v1/printers",
+    tags = ["Printers"],
+    summary = "Create a new printer.",
+    description = "This endpoint creates a new printer in the database with the provided details.",
+    request_body = CreatePrinterRequest,
+    responses(
+        (status = 201, description = "Printer created successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 409, description = "Conflict: Printer with the same name already exists"),
+        (status = 500, description = "An error occurred while creating the printer")
+    )
+)]
 pub async fn create_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreatePrinterRequest>,
@@ -291,6 +360,28 @@ pub async fn create_printer(
     }
 }
 
+/// Updates an existing printer.
+///
+/// This endpoint updates the details of an existing printer.
+/// It accepts the printer ID and the new details for the printer.
+/// The endpoint validates the new name to ensure it is not empty,
+/// does not conflict with an existing printer's name, and meets length requirements.
+/// If the printer is successfully updated, it returns the UUID of the updated printer.
+#[utoipa::path(
+    put,
+    path = "/api/v1/printers",
+    tags = ["Printers"],
+    summary = "Update an existing printer.",
+    description = "This endpoint updates the details of an existing printer in the database.",
+    request_body = UpdatePrinterRequest,
+    responses(
+        (status = 200, description = "Printer updated successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 404, description = "Printer ID not found"),
+        (status = 409, description = "Conflict: Printer with the same name already exists"),
+        (status = 500, description = "An error occurred while updating the printer")
+    )
+)]
 pub async fn update_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdatePrinterRequest>,
@@ -398,6 +489,24 @@ pub async fn update_printer(
     }
 }
 
+/// Deletes an existing printer.
+///
+/// This endpoint allows users to delete a specific printer by its ID.
+/// It checks if the printer exists before attempting to delete it.
+/// If the printer is successfully deleted, a confirmation message is returned.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/printers",
+    tags = ["Printers"],
+    summary = "Delete an existing printer.",
+    description = "This endpoint deletes a specific printer from the database using its ID.",
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "Printer deleted successfully", body = String),
+        (status = 404, description = "Printer ID not found"),
+        (status = 500, description = "An error occurred while deleting the printer")
+    )
+)]
 pub async fn delete_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,

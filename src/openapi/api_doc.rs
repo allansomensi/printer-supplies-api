@@ -1,9 +1,10 @@
 use crate::models::brand::Brand;
+use crate::models::printer::PrinterDetails;
 use crate::models::status::Status;
 use crate::models::supplies::drum::Drum;
 use crate::{
     handlers::{
-        brand, status,
+        brand, printer, status,
         supplies::{drum, toner},
     },
     models::supplies::toner::Toner,
@@ -45,15 +46,24 @@ use crate::{
         brand::update_brand,
         brand::delete_brand,
 
+        // Printers
+        printer::count_printers,
+        printer::search_printer,
+        printer::show_printers,
+        printer::create_printer,
+        printer::update_printer,
+        printer::delete_printer,
+
     ),
     components(
-        schemas(Status, Drum, Toner, Brand)
+        schemas(Status, Drum, Toner, Brand, PrinterDetails)
     ),
     tags(
         (name = "Status", description = "Status endpoints"),
         (name = "Toners", description = "Toners endpoints"),
         (name = "Drums", description = "Drums endpoints"),
         (name = "Brands", description = "Brands endpoints"),
+        (name = "Printers", description = "Printers endpoints"),
     )
 )]
 pub struct ApiDoc;

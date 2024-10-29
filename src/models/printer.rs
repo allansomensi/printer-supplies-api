@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use super::{
@@ -30,7 +31,7 @@ impl Printer {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct PrinterDetails {
     pub id: Uuid,
     pub name: String,
@@ -40,7 +41,7 @@ pub struct PrinterDetails {
     pub drum: Drum,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct CreatePrinterRequest {
     pub name: String,
     pub model: String,
@@ -49,7 +50,7 @@ pub struct CreatePrinterRequest {
     pub drum: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct UpdatePrinterRequest {
     pub id: Uuid,
     pub name: String,
