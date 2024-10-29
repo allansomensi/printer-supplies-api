@@ -78,12 +78,68 @@ pub async fn search_movement(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    match sqlx::query_as::<_, Movement>(r#"SELECT * FROM movements WHERE id = $1"#)
-        .bind(id)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(movement)) => {
+    type MovementView = Option<(
+        Uuid,          // movement_id
+        Uuid,          // printer_id
+        String,        // printer_name
+        String,        // printer_model
+        Uuid,          // item_id
+        String,        // item_name
+        i32,           // item_stock
+        i32,           // quantity
+        DateTime<Utc>, // created_at
+    )>;
+
+    let movement: Result<MovementView, sqlx::Error> = sqlx::query_as(
+        r#"
+        SELECT 
+            m.id AS movement_id,
+            p.id AS printer_id,
+            p.name AS printer_name,
+            p.model AS printer_model,
+            CASE
+                WHEN t.id IS NOT NULL THEN t.id
+                ELSE d.id
+            END AS item_id,
+            CASE
+                WHEN t.id IS NOT NULL THEN t.name
+                ELSE d.name
+            END AS item_name,
+            CASE
+                WHEN t.id IS NOT NULL THEN t.stock
+                ELSE d.stock
+            END AS item_stock,
+            m.quantity AS quantity,
+            m.created_at AS created_at
+        FROM movements m
+        JOIN printers p ON m.printer_id = p.id
+        LEFT JOIN toners t ON m.item_id = t.id
+        LEFT JOIN drums d ON m.item_id = d.id
+        WHERE m.id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await;
+
+    match movement {
+        Ok(Some(row)) => {
+            let movement = MovementDetails {
+                id: row.0,
+                printer: PrinterDetails {
+                    id: row.1,
+                    name: row.2,
+                    model: row.3,
+                },
+                item: ItemDetails {
+                    id: row.4,
+                    name: row.5,
+                    stock: row.6,
+                },
+                quantity: row.7,
+                created_at: row.8,
+            };
+
             info!("Movement found: {id}");
             (StatusCode::OK, Json(Some(movement)))
         }
