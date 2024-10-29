@@ -15,6 +15,21 @@ use crate::models::{
     DeleteRequest,
 };
 
+/// Retrieves the total count of toners.
+///
+/// This endpoint counts all toners stored in the database and returns the count as an integer.
+/// If no toners are found, 0 is returned.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/toners/count",
+    tags = ["Toners"],
+    summary = "Get the total count of toners.",
+    description = "This endpoint retrieves the total number of toners stored in the database.",
+    responses(
+        (status = 200, description = "Toner count retrieved successfully", body = i32),
+        (status = 500, description = "An error occurred while retrieving the toner count")
+    )
+)]
 pub async fn count_toners(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let toner_count: Result<(i32,), sqlx::Error> =
         sqlx::query_as(r#"SELECT COUNT(*)::int FROM toners;"#)
@@ -35,6 +50,25 @@ pub async fn count_toners(State(state): State<Arc<AppState>>) -> impl IntoRespon
     }
 }
 
+/// Retrieves a specific toner by its ID.
+///
+/// This endpoint searches for a toner with the specified ID.
+/// If the toner is found, it returns the toner details.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/toners/{id}",
+    tags = ["Toners"],
+    summary = "Get a specific toner by ID.",
+    description = "This endpoint retrieves a toner's details from the database using its ID. Returns the toner if found, or a 404 status if not found.",
+    params(
+        ("id", description = "The unique identifier of the toner to retrieve", example = "550e8400-e29b-41d4-a716-446655440000")
+    ),
+    responses(
+        (status = 200, description = "Toner retrieved successfully", body = Toner),
+        (status = 404, description = "No toner found with the specified ID"),
+        (status = 500, description = "An error occurred while retrieving the toner")
+    )
+)]
 pub async fn search_toner(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -59,6 +93,22 @@ pub async fn search_toner(
     }
 }
 
+/// Retrieves a list of all toners.
+///
+/// This endpoint fetches all toners stored in the database.
+/// If there are no toners, returns an empty array.
+#[utoipa::path(
+    get,
+    path = "/api/v1/supplies/toners",
+    tags = ["Toners"],
+    summary = "List all toners.",
+    description = "Fetches all toners stored in the database. If there are no toners, returns an empty array.",
+    responses(
+        (status = 200, description = "Toners retrieved successfully", body = Vec<Toner>),
+        (status = 404, description = "No toners found in the database"),
+        (status = 500, description = "An error occurred while retrieving the toners")
+    )
+)]
 pub async fn show_toners(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let toners: Result<Vec<Toner>, sqlx::Error> = sqlx::query_as(r#"SELECT * FROM toners;"#)
         .fetch_all(&state.db)
@@ -78,6 +128,25 @@ pub async fn show_toners(State(state): State<Arc<AppState>>) -> impl IntoRespons
     }
 }
 
+/// Create a new toner.
+///
+/// This endpoint creates a new toner by providing its details.
+/// Validates the toner's name for length and emptiness, checks for duplicates,
+/// and inserts the new toner into the database if all validations pass.
+#[utoipa::path(
+    post,
+    path = "/api/v1/supplies/toners",
+    tags = ["Toners"],
+    summary = "Create a new toner.",
+    description = "This endpoint creates a new toner in the database with the provided details.",
+    request_body = CreateTonerRequest,
+    responses(
+        (status = 201, description = "Toner created successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 409, description = "Conflict: Toner with the same name already exists"),
+        (status = 500, description = "An error occurred while creating the toner")
+    )
+)]
 pub async fn create_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateTonerRequest>,
@@ -152,6 +221,28 @@ pub async fn create_toner(
     }
 }
 
+/// Updates an existing toner.
+///
+/// This endpoint updates the details of an existing toner.
+/// It accepts the toner ID and the new details for the toner, including its name, stock, and price.
+/// The endpoint validates the new name to ensure it is not empty,
+/// does not conflict with an existing toner's name, and meets length requirements.
+/// If the toner is successfully updated, it returns the UUID of the updated toner.
+#[utoipa::path(
+    put,
+    path = "/api/v1/supplies/toners",
+    tags = ["Toners"],
+    summary = "Update an existing toner.",
+    description = "This endpoint updates the details of an existing toner in the database.",
+    request_body = UpdateTonerRequest,
+    responses(
+        (status = 200, description = "Toner updated successfully", body = Uuid),
+        (status = 400, description = "Invalid input, including empty name or name too short/long"),
+        (status = 404, description = "Toner ID not found"),
+        (status = 409, description = "Conflict: Toner with the same name already exists"),
+        (status = 500, description = "An error occurred while updating the toner")
+    )
+)]
 pub async fn update_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateTonerRequest>,
@@ -278,6 +369,24 @@ pub async fn update_toner(
     }
 }
 
+/// Deletes an existing toner.
+///
+/// This endpoint allows users to delete a specific toner by its ID.
+/// It checks if the toner exists before attempting to delete it.
+/// If the toner is successfully deleted, a confirmation message is returned.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/supplies/toners",
+    tags = ["Toners"],
+    summary = "Delete an existing toner.",
+    description = "This endpoint deletes a specific toner from the database using its ID.",
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "Toner deleted successfully", body = String),
+        (status = 404, description = "Toner ID not found"),
+        (status = 500, description = "An error occurred while deleting the toner")
+    )
+)]
 pub async fn delete_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
@@ -314,7 +423,7 @@ pub async fn delete_toner(
             error!("Error deleting toner: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error deleting drum.")),
+                Err(Json("Error deleting toner.")),
             )
         }
     }

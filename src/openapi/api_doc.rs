@@ -1,6 +1,12 @@
-use crate::handlers::{status, supplies::drum};
 use crate::models::status::Status;
 use crate::models::supplies::drum::Drum;
+use crate::{
+    handlers::{
+        status,
+        supplies::{drum, toner},
+    },
+    models::supplies::toner::Toner,
+};
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -14,6 +20,14 @@ use crate::models::supplies::drum::Drum;
         // Status
         status::show_status,
 
+        // Toner
+        toner::count_toners,
+        toner::search_toner,
+        toner::show_toners,
+        toner::create_toner,
+        toner::update_toner,
+        toner::delete_toner,
+
         // Drum
         drum::count_drums,
         drum::search_drum,
@@ -21,12 +35,14 @@ use crate::models::supplies::drum::Drum;
         drum::create_drum,
         drum::update_drum,
         drum::delete_drum,
+
     ),
     components(
-        schemas(Status, Drum)
+        schemas(Status, Drum, Toner)
     ),
     tags(
         (name = "Status", description = "Status endpoints"),
+        (name = "Toners", description = "Toners endpoints"),
         (name = "Drums", description = "Drums endpoints"),
     )
 )]
