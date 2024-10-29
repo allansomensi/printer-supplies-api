@@ -5,7 +5,7 @@ pub mod printers;
 pub mod status;
 pub mod supplies;
 
-use crate::{config::Config, models::database::AppState};
+use crate::{config::Config, models::database::AppState, openapi::swagger::swagger_route};
 use axum::Router;
 use std::sync::Arc;
 
@@ -21,5 +21,6 @@ pub fn create_routes(state: Arc<AppState>) -> Router {
                 .nest("/movements", movements::create_routes(state.clone()))
                 .nest("/brands", brands::create_routes(state)),
         )
+        .merge(swagger_route())
         .layer(Config::cors())
 }
