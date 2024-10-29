@@ -1,9 +1,10 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, ToSchema)]
 pub struct Toner {
     pub id: Uuid,
     pub name: String,
@@ -34,14 +35,14 @@ impl Toner {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct CreateTonerRequest {
     pub name: String,
     pub stock: Option<i32>,
     pub price: Option<Decimal>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct UpdateTonerRequest {
     pub id: Uuid,
     pub name: Option<String>,
