@@ -1,6 +1,7 @@
 mod config;
 mod handlers;
 mod models;
+mod openapi;
 mod routes;
 mod server;
 
