@@ -136,7 +136,7 @@ pub async fn show_brands(State(state): State<Arc<AppState>>) -> impl IntoRespons
 /// and inserts the new brand into the database if all validations pass.
 #[utoipa::path(
     post,
-    path = "/api/v1/supplies/brands",
+    path = "/api/v1/brands",
     tags = ["Brands"],
     summary = "Create a new brand.",
     description = "This endpoint creates a new brand in the database with the provided details.",
