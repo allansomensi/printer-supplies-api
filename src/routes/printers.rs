@@ -1,5 +1,4 @@
-use crate::handlers::printer;
-use crate::models::database::AppState;
+use crate::{database::AppState, handlers::printer};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 

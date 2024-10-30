@@ -1,4 +1,4 @@
-use crate::models::database::AppState;
+use crate::database::AppState;
 use axum::Router;
 use std::sync::Arc;
 

@@ -1,5 +1,12 @@
-use std::{str::FromStr, sync::Arc};
-
+use crate::{
+    database::AppState,
+    models::{
+        brand::Brand,
+        printer::{CreatePrinterRequest, Printer, PrinterDetails, UpdatePrinterRequest},
+        supplies::{drum::Drum, toner::Toner},
+        DeleteRequest,
+    },
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -7,16 +14,9 @@ use axum::{
     Json,
 };
 use rust_decimal::Decimal;
+use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 use uuid::Uuid;
-
-use crate::models::{
-    brand::Brand,
-    database::AppState,
-    printer::{CreatePrinterRequest, Printer, PrinterDetails, UpdatePrinterRequest},
-    supplies::{drum::Drum, toner::Toner},
-    DeleteRequest,
-};
 
 /// Retrieves the total count of printers.
 ///

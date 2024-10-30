@@ -1,23 +1,23 @@
-use chrono::{DateTime, Utc};
-use reqwest::StatusCode;
-use std::sync::Arc;
-use tracing::{error, info};
-
+use crate::{
+    database::AppState,
+    models::{
+        movement::{
+            CreateMovementRequest, ItemDetails, Movement, MovementDetails, PrinterDetails,
+            UpdateMovementRequest,
+        },
+        DeleteRequest,
+    },
+};
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
+use chrono::{DateTime, Utc};
+use reqwest::StatusCode;
+use std::sync::Arc;
+use tracing::{error, info};
 use uuid::Uuid;
-
-use crate::models::{
-    database::AppState,
-    movement::{
-        CreateMovementRequest, ItemDetails, Movement, MovementDetails, PrinterDetails,
-        UpdateMovementRequest,
-    },
-    DeleteRequest,
-};
 
 /// Retrieves the total count of movements.
 ///

@@ -1,7 +1,6 @@
+use crate::{database::AppState, routes};
 use std::sync::Arc;
 use tracing::{error, info};
-
-use crate::{models::database::AppState, routes};
 
 pub async fn run() -> Result<(), axum::Error> {
     let database_url = std::env::var("DATABASE_URL").expect("Failed to load DATABASE_URL");

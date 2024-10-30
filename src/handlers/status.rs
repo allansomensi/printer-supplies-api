@@ -1,13 +1,11 @@
-use std::{env, sync::Arc};
-
+use crate::{
+    database::AppState,
+    models::status::{Database, Dependencies, Status},
+};
 use axum::{extract::State, Json};
 use chrono::Utc;
+use std::{env, sync::Arc};
 use tracing::info;
-
-use crate::models::{
-    database::AppState,
-    status::{Database, Dependencies, Status},
-};
 
 /// Retrieves the current status of the API, including the database connection status.
 /// Provides information on the database version, maximum connections, and currently open connections.

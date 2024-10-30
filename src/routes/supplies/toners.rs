@@ -1,5 +1,4 @@
-use crate::handlers::supplies::toner;
-use crate::models::database::AppState;
+use crate::{database::AppState, handlers::supplies::toner};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 

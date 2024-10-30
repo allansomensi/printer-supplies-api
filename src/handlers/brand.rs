@@ -1,19 +1,19 @@
-use std::sync::Arc;
-
+use crate::{
+    database::AppState,
+    models::{
+        brand::{Brand, CreateBrandRequest, UpdateBrandRequest},
+        DeleteRequest,
+    },
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
-
-use crate::models::{
-    brand::{Brand, CreateBrandRequest, UpdateBrandRequest},
-    database::AppState,
-    DeleteRequest,
-};
 
 /// Retrieves the total count of brands.
 ///

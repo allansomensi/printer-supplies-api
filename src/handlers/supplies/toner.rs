@@ -1,22 +1,20 @@
-use std::sync::Arc;
-
+use crate::{
+    database::AppState,
+    errors::ApiError,
+    models::{
+        supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
+        DeleteRequest,
+    },
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
-
-use crate::{
-    errors::ApiError,
-    models::{
-        database::AppState,
-        supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
-        DeleteRequest,
-    },
-};
 
 /// Retrieves the total count of toners.
 ///
