@@ -1,11 +1,12 @@
-use crate::{database::AppState, routes};
+use crate::{
+    database::{connection::create_pool, AppState},
+    routes,
+};
 use std::sync::Arc;
 use tracing::{error, info};
 
 pub async fn run() -> Result<(), axum::Error> {
-    let database_url = std::env::var("DATABASE_URL").expect("Failed to load DATABASE_URL");
-
-    let pool = match sqlx::PgPool::connect(&database_url).await {
+    let pool = match create_pool().await {
         Ok(pool) => {
             info!("✅ Connected to the database");
             pool
