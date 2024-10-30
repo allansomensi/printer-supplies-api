@@ -9,10 +9,13 @@ use axum::{
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::models::{
-    database::AppState,
-    supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
-    DeleteRequest,
+use crate::{
+    errors::ApiError,
+    models::{
+        database::AppState,
+        supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
+        DeleteRequest,
+    },
 };
 
 /// Retrieves the total count of toners.
@@ -42,10 +45,7 @@ pub async fn count_toners(State(state): State<Arc<AppState>>) -> impl IntoRespon
         }
         Err(e) => {
             error!("Error retrieving toner count: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error retrieving toner count."),
-            ))
+            Err(ApiError::DatabaseError(e))
         }
     }
 }
@@ -80,15 +80,15 @@ pub async fn search_toner(
     {
         Ok(Some(toner)) => {
             info!("Toner found: {id}");
-            (StatusCode::OK, Json(Some(toner)))
+            (StatusCode::OK, Json(Some(toner))).into_response()
         }
         Ok(None) => {
             error!("No toner found.");
-            (StatusCode::NOT_FOUND, Json(None))
+            (ApiError::IdNotFound).into_response()
         }
         Err(e) => {
             error!("Error retrieving toner: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
+            (ApiError::DatabaseError(e)).into_response()
         }
     }
 }
@@ -120,10 +120,7 @@ pub async fn show_toners(State(state): State<Arc<AppState>>) -> impl IntoRespons
         }
         Err(e) => {
             error!("Error listing toners: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error listing toners."),
-            ))
+            Err(ApiError::DatabaseError(e))
         }
     }
 }
@@ -156,26 +153,17 @@ pub async fn create_toner(
     // Name is empty
     if request.name.is_empty() {
         error!("Toner name cannot be empty.");
-        return (
-            StatusCode::BAD_REQUEST,
-            Err(Json("Toner name cannot be empty.")),
-        );
+        return ApiError::EmptyName.into_response();
     }
     // Name too short
     if request.name.len() < 4 {
         error!("Toner name is too short.");
-        return (
-            StatusCode::BAD_REQUEST,
-            Err(Json("Toner name is too short.")),
-        );
+        return ApiError::NameTooShort.into_response();
     }
     // Name too long
     if request.name.len() > 20 {
         error!("Toner name is too long.");
-        return (
-            StatusCode::BAD_REQUEST,
-            Err(Json("Toner name is too long.")),
-        );
+        return ApiError::NameTooLong.into_response();
     }
 
     let new_toner = Toner::new(&request.name, request.stock, request.price);
@@ -188,7 +176,7 @@ pub async fn create_toner(
     {
         Ok(Some(_)) => {
             error!("Toner '{}' already exists.", &new_toner.name);
-            (StatusCode::CONFLICT, Err(Json("Toner already exists.")))
+            ApiError::AlreadyExists.into_response()
         }
         Ok(None) => {
             match sqlx::query(
@@ -203,21 +191,15 @@ pub async fn create_toner(
             {
                 Ok(_) => {
                     info!("Toner created! ID: {}", &new_toner.id);
-                    (StatusCode::CREATED, Ok(Json(new_toner.id)))
+                    (StatusCode::CREATED, Json(new_toner.id)).into_response()
                 }
                 Err(e) => {
                     error!("Error creating toner: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error creating toner.")),
-                    )
+                    ApiError::DatabaseError(e).into_response()
                 }
             }
         }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Err(Json("Error creating toner.")),
-        ),
+        Err(e) => ApiError::DatabaseError(e).into_response(),
     }
 }
 
@@ -262,26 +244,17 @@ pub async fn update_toner(
             if let Some(name) = new_name {
                 if name.is_empty() {
                     error!("Toner name cannot be empty.");
-                    return (
-                        StatusCode::CONFLICT,
-                        Err(Json("Toner name cannot be empty.")),
-                    );
+                    return ApiError::EmptyName.into_response();
                 }
 
                 if name.len() < 4 {
                     error!("Toner name is too short.");
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Err(Json("Toner name is too short.")),
-                    );
+                    return ApiError::NameTooShort.into_response();
                 }
 
                 if name.len() > 20 {
                     error!("Toner name is too long.");
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Err(Json("Toner name is too long.")),
-                    );
+                    return ApiError::NameTooLong.into_response();
                 }
 
                 // Check duplicate
@@ -293,10 +266,7 @@ pub async fn update_toner(
                 {
                     Ok(Some(_)) => {
                         error!("Toner name already exists.");
-                        return (
-                            StatusCode::CONFLICT,
-                            Err(Json("Toner name already exists.")),
-                        );
+                        return ApiError::AlreadyExists.into_response();
                     }
                     Ok(None) => {
                         if let Err(e) = sqlx::query(r#"UPDATE toners SET name = $1 WHERE id = $2;"#)
@@ -306,18 +276,12 @@ pub async fn update_toner(
                             .await
                         {
                             error!("Error updating toner name: {e}");
-                            return (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Err(Json("Error updating toner name.")),
-                            );
+                            return ApiError::DatabaseError(e).into_response();
                         }
                     }
                     Err(e) => {
                         error!("Error checking for duplicate toner name: {e}");
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Err(Json("Error checking for duplicated toner name.")),
-                        );
+                        return ApiError::Unknown.into_response();
                     }
                 }
             }
@@ -330,10 +294,7 @@ pub async fn update_toner(
                     .await
                 {
                     error!("Error updating toner stock: {}", e);
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating toner stock.")),
-                    );
+                    return ApiError::DatabaseError(e).into_response();
                 }
             }
 
@@ -345,26 +306,20 @@ pub async fn update_toner(
                     .await
                 {
                     error!("Error updating toner price: {e}");
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating toner price.")),
-                    );
+                    return ApiError::DatabaseError(e).into_response();
                 }
             }
 
             info!("Toner updated! ID: {}", &toner_id);
-            (StatusCode::OK, Ok(Json(toner_id)))
+            (StatusCode::OK, Json(toner_id)).into_response()
         }
         Ok(None) => {
             error!("Toner ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Toner ID not found.")))
+            ApiError::IdNotFound.into_response()
         }
         Err(e) => {
             error!("Error fetching toner by ID: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error fetching toner by ID")),
-            )
+            ApiError::Unknown.into_response()
         }
     }
 }
@@ -404,27 +359,21 @@ pub async fn delete_toner(
             {
                 Ok(_) => {
                     info!("Toner deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Ok(Json("Toner deleted!")))
+                    (StatusCode::OK, Json("Toner deleted!")).into_response()
                 }
                 Err(e) => {
                     error!("Error deleting toner: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Ok(Json("Error deleting toner.")),
-                    )
+                    ApiError::DatabaseError(e).into_response()
                 }
             }
         }
         Ok(None) => {
             error!("Toner ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Toner ID not found")))
+            ApiError::IdNotFound.into_response()
         }
         Err(e) => {
             error!("Error deleting toner: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error deleting toner.")),
-            )
+            ApiError::Unknown.into_response()
         }
     }
 }
