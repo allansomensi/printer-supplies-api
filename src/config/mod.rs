@@ -1,26 +1,13 @@
-use dotenvy::Error as DotenvError;
-
 pub mod cors;
+pub mod environment;
 pub mod logger;
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum ConfigError {
-    DotenvError(DotenvError),
-}
-
-impl From<DotenvError> for ConfigError {
-    fn from(e: DotenvError) -> Self {
-        ConfigError::DotenvError(e)
-    }
-}
 
 pub struct Config {}
 
 impl Config {
-    pub fn init() -> Result<(), ConfigError> {
+    pub fn init() -> Result<(), dotenvy::Error> {
         Self::logger_init();
-        dotenvy::dotenv()?;
+        environment::load_environment();
         Ok(())
     }
 }

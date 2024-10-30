@@ -1,3 +1,5 @@
+set dotenv-path := "environments/.env.development"
+
 # Services
 services-up:
     @docker compose -f compose.yaml up -d
