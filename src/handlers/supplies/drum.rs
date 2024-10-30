@@ -9,10 +9,13 @@ use axum::{
 use tracing::{error, info};
 use uuid::Uuid;
 
-use crate::models::{
-    database::AppState,
-    supplies::drum::{CreateDrumRequest, Drum, UpdateDrumRequest},
-    DeleteRequest,
+use crate::{
+    errors::ApiError,
+    models::{
+        database::AppState,
+        supplies::drum::{CreateDrumRequest, Drum, UpdateDrumRequest},
+        DeleteRequest,
+    },
 };
 
 /// Retrieves the total count of drums.
@@ -43,10 +46,7 @@ pub async fn count_drums(State(state): State<Arc<AppState>>) -> impl IntoRespons
         }
         Err(e) => {
             error!("Error retrieving drum count: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error retrieving drum count."),
-            ))
+            Err(ApiError::DatabaseError(e))
         }
     }
 }
@@ -81,15 +81,15 @@ pub async fn search_drum(
     {
         Ok(Some(drum)) => {
             info!("Drum found: {id}");
-            (StatusCode::OK, Json(Some(drum)))
+            (StatusCode::OK, Json(Some(drum))).into_response()
         }
         Ok(None) => {
             error!("No drum found.");
-            (StatusCode::NOT_FOUND, Json(None))
+            (ApiError::IdNotFound).into_response()
         }
         Err(e) => {
             error!("Error retrieving drum: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
+            (ApiError::DatabaseError(e)).into_response()
         }
     }
 }
@@ -121,10 +121,7 @@ pub async fn show_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse
         }
         Err(e) => {
             error!("Error listing drums: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error listing drums."),
-            ))
+            Err(ApiError::DatabaseError(e))
         }
     }
 }
@@ -157,23 +154,17 @@ pub async fn create_drum(
     // Name is empty
     if request.name.is_empty() {
         error!("Drum name cannot be empty.");
-        return (
-            StatusCode::BAD_REQUEST,
-            Err(Json("Drum name cannot be empty.")),
-        );
+        return ApiError::EmptyName.into_response();
     }
     // Name too short
     if request.name.len() < 4 {
         error!("Drum name is too short.");
-        return (
-            StatusCode::BAD_REQUEST,
-            Err(Json("Drum name is too short.")),
-        );
+        return ApiError::NameTooShort.into_response();
     }
     // Name too long
     if request.name.len() > 20 {
         error!("Drum name is too long.");
-        return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
+        return ApiError::NameTooLong.into_response();
     }
 
     let new_drum = Drum::new(&request.name, request.stock, request.price);
@@ -186,7 +177,7 @@ pub async fn create_drum(
     {
         Ok(Some(_)) => {
             error!("Drum '{}' already exists.", &new_drum.name);
-            (StatusCode::CONFLICT, Err(Json("Drum already exists.")))
+            ApiError::AlreadyExists.into_response()
         }
         Ok(None) => {
             match sqlx::query(
@@ -201,21 +192,15 @@ pub async fn create_drum(
             {
                 Ok(_) => {
                     info!("Drum created! ID: {}", &new_drum.id);
-                    (StatusCode::CREATED, Ok(Json(new_drum.id)))
+                    (StatusCode::CREATED, Json(new_drum.id)).into_response()
                 }
                 Err(e) => {
                     error!("Error creating drum: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error creating drum.")),
-                    )
+                    ApiError::DatabaseError(e).into_response()
                 }
             }
         }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Err(Json("Error creating drum.")),
-        ),
+        Err(e) => ApiError::DatabaseError(e).into_response(),
     }
 }
 
@@ -260,23 +245,17 @@ pub async fn update_drum(
             if let Some(name) = new_name {
                 if name.is_empty() {
                     error!("Drum name cannot be empty.");
-                    return (
-                        StatusCode::CONFLICT,
-                        Err(Json("Drum name cannot be empty.")),
-                    );
+                    return ApiError::EmptyName.into_response();
                 }
 
                 if name.len() < 4 {
                     error!("Drum name is too short.");
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Err(Json("Drum name is too short.")),
-                    );
+                    return ApiError::NameTooShort.into_response();
                 }
 
                 if name.len() > 20 {
                     error!("Drum name is too long.");
-                    return (StatusCode::BAD_REQUEST, Err(Json("Drum name is too long.")));
+                    return ApiError::NameTooLong.into_response();
                 }
 
                 // Check duplicate
@@ -288,7 +267,7 @@ pub async fn update_drum(
                 {
                     Ok(Some(_)) => {
                         error!("Drum name already exists.");
-                        return (StatusCode::CONFLICT, Err(Json("Drum name already exists.")));
+                        return ApiError::AlreadyExists.into_response();
                     }
                     Ok(None) => {
                         if let Err(e) = sqlx::query(r#"UPDATE drums SET name = $1 WHERE id = $2;"#)
@@ -298,18 +277,12 @@ pub async fn update_drum(
                             .await
                         {
                             error!("Error updating drum name: {e}");
-                            return (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Err(Json("Error updating drum name.")),
-                            );
+                            return ApiError::DatabaseError(e).into_response();
                         }
                     }
                     Err(e) => {
                         error!("Error checking for duplicate drum name: {e}");
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            Err(Json("Error checking for duplicated drum name.")),
-                        );
+                        return ApiError::Unknown.into_response();
                     }
                 }
             }
@@ -321,11 +294,8 @@ pub async fn update_drum(
                     .execute(&state.db)
                     .await
                 {
-                    error!("Error updating drum stock: {}", e);
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating drum stock.")),
-                    );
+                    error!("Error updating drum stock: {e}");
+                    return ApiError::DatabaseError(e).into_response();
                 }
             }
 
@@ -337,26 +307,20 @@ pub async fn update_drum(
                     .await
                 {
                     error!("Error updating drum price: {e}");
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating drum price.")),
-                    );
+                    return ApiError::DatabaseError(e).into_response();
                 }
             }
 
             info!("Drum updated! ID: {}", &drum_id);
-            (StatusCode::OK, Ok(Json(drum_id)))
+            (StatusCode::OK, Json(drum_id)).into_response()
         }
         Ok(None) => {
             error!("Drum ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Drum ID not found.")))
+            ApiError::IdNotFound.into_response()
         }
         Err(e) => {
             error!("Error fetching drum by ID: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error fetching drum by ID")),
-            )
+            ApiError::Unknown.into_response()
         }
     }
 }
@@ -396,27 +360,21 @@ pub async fn delete_drum(
             {
                 Ok(_) => {
                     info!("Drum deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Ok(Json("Drum deleted!")))
+                    (StatusCode::OK, Json("Drum deleted!")).into_response()
                 }
                 Err(e) => {
                     error!("Error deleting drum: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Ok(Json("Error deleting drum.")),
-                    )
+                    ApiError::DatabaseError(e).into_response()
                 }
             }
         }
         Ok(None) => {
             error!("Drum ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Drum ID not found")))
+            ApiError::IdNotFound.into_response()
         }
         Err(e) => {
             error!("Error deleting drum: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error deleting drum.")),
-            )
+            ApiError::Unknown.into_response()
         }
     }
 }
