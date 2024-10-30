@@ -1,4 +1,5 @@
-set dotenv-path := "environments/.env.development"
+load-env:
+    @bash -c 'source scripts/set_env.sh && exec "$SHELL"'
 
 # Services
 services-up:
@@ -25,7 +26,7 @@ migrate-down:
     @cargo sqlx migrate revert
 
 # Dev utils
-dev:
+serve:
     @just services-up
     @sleep 1
     @just run-watch
@@ -43,7 +44,7 @@ test-watch:
     @cargo watch -q -c -x test
 
 clippy:
-  cargo clippy --all --all-targets --all-features
+    @cargo clippy --all --all-targets --all-features
 
 lint:
     @cargo fmt --all -- --check
