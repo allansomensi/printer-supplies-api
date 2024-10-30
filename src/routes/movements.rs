@@ -1,5 +1,4 @@
-use crate::handlers::movement;
-use crate::models::database::AppState;
+use crate::{database::AppState, handlers::movement};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 

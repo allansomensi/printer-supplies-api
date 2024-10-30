@@ -1,9 +1,8 @@
+use crate::database::AppState;
 use axum::{extract::State, response::IntoResponse, Json};
 use sqlx::migrate;
 use std::sync::Arc;
 use tracing::{error, info};
-
-use crate::models::database::AppState;
 
 pub async fn dry_run() {
     todo!("Dry run mode is planned but has not been implemented yet.");

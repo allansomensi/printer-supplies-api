@@ -1,5 +1,4 @@
-use crate::handlers::brand;
-use crate::models::database::AppState;
+use crate::{database::AppState, handlers::brand};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 

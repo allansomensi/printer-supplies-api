@@ -1,5 +1,4 @@
-use crate::handlers::supplies::drum;
-use crate::models::database::AppState;
+use crate::{database::AppState, handlers::supplies::drum};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 

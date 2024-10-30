@@ -6,7 +6,7 @@ pub mod status;
 pub mod supplies;
 pub mod swagger;
 
-use crate::{config::Config, models::database::AppState};
+use crate::{config::Config, database::AppState};
 use axum::Router;
 use std::sync::Arc;
 
