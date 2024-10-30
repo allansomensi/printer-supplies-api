@@ -15,7 +15,10 @@ A **REST API** using **Axum** for managing **printer supplies**, such as toners 
 - CRUD operations for movements, printers, brands, drums, and toners.
 - Inventory management for toners and drums.
 - Docker Compose setup for easy deployment.
-- Database migrations included.
+- Database migrations included, executable via CLI or endpoint.
+- Error handling with thiserror for descriptive error responses.
+- Includes development, production, and test environments.
+- Includes unit and integration tests.
 - API documentation available with Swagger UI.
 
 ---
@@ -39,22 +42,28 @@ For the scripts:
 cargo install just
 ```
 
-## 2. Build and run the Docker container:
+## 2. Load environment variables
+
+``` elixir
+just load-env
+```
+
+## 3. Build and run the Docker container:
 
 ``` elixir
 just services-up
 ```
 
-## 3. Run migrations:
+## 4. Run migrations:
 
 ``` elixir
 just migrate-run
 ```
 
-## 4. Start server 🚀 🚀 
+## 5. Start server 🚀 🚀 
 
 ``` elixir
-just dev
+just serve
 ```
 
 # Running Tests 👨‍🔬
