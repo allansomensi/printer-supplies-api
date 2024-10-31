@@ -45,10 +45,12 @@ pub struct CreateTonerRequest {
     pub price: Option<Decimal>,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema, Validate)]
 pub struct UpdateTonerRequest {
     pub id: Uuid,
+    #[validate(length(min = 3, message = "Name must be greater than 3 chars"))]
     pub name: Option<String>,
+    #[validate(range(min = 0, message = "Stock must be greater or equal than 0"))]
     pub stock: Option<i32>,
     pub price: Option<Decimal>,
 }
