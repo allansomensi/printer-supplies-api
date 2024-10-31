@@ -106,20 +106,19 @@ pub async fn search_toner(
         (status = 500, description = "An error occurred while retrieving the toners")
     )
 )]
-pub async fn show_toners(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let toners: Result<Vec<Toner>, sqlx::Error> = sqlx::query_as(r#"SELECT * FROM toners;"#)
+pub async fn show_toners(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let toners = sqlx::query_as::<_, Toner>(r#"SELECT * FROM toners;"#)
         .fetch_all(&state.db)
-        .await;
-    match toners {
-        Ok(toners) => {
-            info!("Toners listed successfully");
-            Ok(Json(toners))
-        }
-        Err(e) => {
+        .await
+        .map_err(|e| {
             error!("Error listing toners: {e}");
-            Err(ApiError::DatabaseError(e))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Toners listed successfully");
+    Ok(Json(toners))
 }
 
 /// Create a new toner.
@@ -144,60 +143,53 @@ pub async fn show_toners(State(state): State<Arc<AppState>>) -> impl IntoRespons
 pub async fn create_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateTonerRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
     // Validations
-
-    // Name is empty
     if request.name.is_empty() {
         error!("Toner name cannot be empty.");
-        return ApiError::EmptyName.into_response();
+        return Err(ApiError::EmptyName);
     }
-    // Name too short
     if request.name.len() < 4 {
         error!("Toner name is too short.");
-        return ApiError::NameTooShort.into_response();
+        return Err(ApiError::NameTooShort);
     }
-    // Name too long
     if request.name.len() > 20 {
         error!("Toner name is too long.");
-        return ApiError::NameTooLong.into_response();
+        return Err(ApiError::NameTooLong);
     }
 
     let new_toner = Toner::new(&request.name, request.stock, request.price);
 
-    // Check for duplicate toner name
-    match sqlx::query(r#"SELECT id FROM toners WHERE name = $1;"#)
+    // Check for duplicate
+    let exists = sqlx::query(r#"SELECT id FROM toners WHERE name = $1;"#)
         .bind(&new_toner.name)
         .fetch_optional(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            error!("Toner '{}' already exists.", &new_toner.name);
-            ApiError::AlreadyExists.into_response()
-        }
-        Ok(None) => {
-            match sqlx::query(
-                r#"INSERT INTO toners (id, name, stock, price) VALUES ($1, $2, $3, $4);"#,
-            )
-            .bind(new_toner.id)
-            .bind(&new_toner.name)
-            .bind(new_toner.stock)
-            .bind(new_toner.price)
-            .execute(&state.db)
-            .await
-            {
-                Ok(_) => {
-                    info!("Toner created! ID: {}", &new_toner.id);
-                    (StatusCode::CREATED, Json(new_toner.id)).into_response()
-                }
-                Err(e) => {
-                    error!("Error creating toner: {}", e);
-                    ApiError::DatabaseError(e).into_response()
-                }
-            }
-        }
-        Err(e) => ApiError::DatabaseError(e).into_response(),
+        .map_err(|e| {
+            error!("Error checking for existing toner: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .is_some();
+
+    if exists {
+        error!("Toner '{}' already exists.", &new_toner.name);
+        return Err(ApiError::AlreadyExists);
     }
+
+    sqlx::query(r#"INSERT INTO toners (id, name, stock, price) VALUES ($1, $2, $3, $4);"#)
+        .bind(new_toner.id)
+        .bind(&new_toner.name)
+        .bind(new_toner.stock)
+        .bind(new_toner.price)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error creating toner: {e}");
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Toner created! ID: {}", &new_toner.id);
+    Ok((StatusCode::CREATED, Json(new_toner.id)))
 }
 
 /// Updates an existing toner.
@@ -225,100 +217,100 @@ pub async fn create_toner(
 pub async fn update_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateTonerRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
     let toner_id = request.id;
     let new_name = request.name.clone();
     let new_stock = request.stock;
     let new_price = request.price;
 
     // ID not found
-    match sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
+    let toner_exists = sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
         .bind(toner_id)
         .fetch_optional(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            if let Some(name) = new_name {
-                if name.is_empty() {
-                    error!("Toner name cannot be empty.");
-                    return ApiError::EmptyName.into_response();
-                }
-
-                if name.len() < 4 {
-                    error!("Toner name is too short.");
-                    return ApiError::NameTooShort.into_response();
-                }
-
-                if name.len() > 20 {
-                    error!("Toner name is too long.");
-                    return ApiError::NameTooLong.into_response();
-                }
-
-                // Check duplicate
-                match sqlx::query(r#"SELECT id FROM toners WHERE name = $1 AND id != $2;"#)
-                    .bind(&name)
-                    .bind(toner_id)
-                    .fetch_optional(&state.db)
-                    .await
-                {
-                    Ok(Some(_)) => {
-                        error!("Toner name already exists.");
-                        return ApiError::AlreadyExists.into_response();
-                    }
-                    Ok(None) => {
-                        if let Err(e) = sqlx::query(r#"UPDATE toners SET name = $1 WHERE id = $2;"#)
-                            .bind(&name)
-                            .bind(toner_id)
-                            .execute(&state.db)
-                            .await
-                        {
-                            error!("Error updating toner name: {e}");
-                            return ApiError::DatabaseError(e).into_response();
-                        }
-                    }
-                    Err(e) => {
-                        error!("Error checking for duplicate toner name: {e}");
-                        return ApiError::Unknown.into_response();
-                    }
-                }
-            }
-
-            if let Some(stock) = new_stock {
-                if let Err(e) = sqlx::query(r#"UPDATE toners SET stock = $1 WHERE id = $2;"#)
-                    .bind(stock)
-                    .bind(toner_id)
-                    .execute(&state.db)
-                    .await
-                {
-                    error!("Error updating toner stock: {}", e);
-                    return ApiError::DatabaseError(e).into_response();
-                }
-            }
-
-            if let Some(price) = new_price {
-                if let Err(e) = sqlx::query(r#"UPDATE toners SET price = $1 WHERE id = $2;"#)
-                    .bind(price)
-                    .bind(toner_id)
-                    .execute(&state.db)
-                    .await
-                {
-                    error!("Error updating toner price: {e}");
-                    return ApiError::DatabaseError(e).into_response();
-                }
-            }
-
-            info!("Toner updated! ID: {}", &toner_id);
-            (StatusCode::OK, Json(toner_id)).into_response()
-        }
-        Ok(None) => {
-            error!("Toner ID not found.");
-            ApiError::IdNotFound.into_response()
-        }
-        Err(e) => {
+        .map_err(|e| {
             error!("Error fetching toner by ID: {e}");
-            ApiError::Unknown.into_response()
-        }
+            ApiError::Unknown
+        })?
+        .is_some();
+
+    if !toner_exists {
+        error!("Toner ID not found.");
+        return Err(ApiError::IdNotFound);
     }
+
+    // Validate and update name if provided
+    if let Some(name) = new_name {
+        if name.is_empty() {
+            error!("Toner name cannot be empty.");
+            return Err(ApiError::EmptyName);
+        }
+        if name.len() < 4 {
+            error!("Toner name is too short.");
+            return Err(ApiError::NameTooShort);
+        }
+        if name.len() > 20 {
+            error!("Toner name is too long.");
+            return Err(ApiError::NameTooLong);
+        }
+
+        // Check for duplicate
+        let name_exists = sqlx::query(r#"SELECT id FROM toners WHERE name = $1 AND id != $2;"#)
+            .bind(&name)
+            .bind(toner_id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error checking for duplicate toner name: {e}");
+                ApiError::Unknown
+            })?
+            .is_some();
+
+        if name_exists {
+            error!("Toner name already exists.");
+            return Err(ApiError::AlreadyExists);
+        }
+
+        // Update toner name
+        sqlx::query(r#"UPDATE toners SET name = $1 WHERE id = $2;"#)
+            .bind(&name)
+            .bind(toner_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating toner name: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+    }
+
+    // Update stock if provided
+    if let Some(stock) = new_stock {
+        sqlx::query(r#"UPDATE toners SET stock = $1 WHERE id = $2;"#)
+            .bind(stock)
+            .bind(toner_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating toner stock: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+    }
+
+    // Update price if provided
+    if let Some(price) = new_price {
+        sqlx::query(r#"UPDATE toners SET price = $1 WHERE id = $2;"#)
+            .bind(price)
+            .bind(toner_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating toner price: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+    }
+
+    info!("Toner updated! ID: {}", &toner_id);
+    Ok((StatusCode::OK, Json(toner_id)).into_response())
 }
 
 /// Deletes an existing toner.
@@ -342,35 +334,33 @@ pub async fn update_toner(
 pub async fn delete_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
-) -> impl IntoResponse {
-    match sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
+) -> Result<impl IntoResponse, ApiError> {
+    // Check if the toner exists
+    let toner_exists = sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
         .bind(request.id)
         .fetch_optional(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            match sqlx::query(r#"DELETE FROM toners WHERE id = $1;"#)
-                .bind(request.id)
-                .execute(&state.db)
-                .await
-            {
-                Ok(_) => {
-                    info!("Toner deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Json("Toner deleted!")).into_response()
-                }
-                Err(e) => {
-                    error!("Error deleting toner: {}", e);
-                    ApiError::DatabaseError(e).into_response()
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Toner ID not found.");
-            ApiError::IdNotFound.into_response()
-        }
-        Err(e) => {
-            error!("Error deleting toner: {}", e);
-            ApiError::Unknown.into_response()
-        }
+        .map_err(|e| {
+            error!("Error checking toner ID: {}", e);
+            ApiError::Unknown
+        })?
+        .is_some();
+
+    if !toner_exists {
+        error!("Toner ID not found.");
+        return Err(ApiError::IdNotFound);
     }
+
+    // Delete the toner
+    sqlx::query(r#"DELETE FROM toners WHERE id = $1;"#)
+        .bind(request.id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error deleting toner: {}", e);
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Toner deleted! ID: {}", &request.id);
+    Ok((StatusCode::OK, Json("Toner deleted!")).into_response())
 }
