@@ -6,6 +6,7 @@ mod models;
 mod openapi;
 mod routes;
 mod server;
+mod validations;
 
 #[tokio::main]
 async fn main() {

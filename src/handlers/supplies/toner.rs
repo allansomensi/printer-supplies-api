@@ -5,6 +5,7 @@ use crate::{
         supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
         DeleteRequest,
     },
+    validations::{existence::toner_exists, uniqueness::is_toner_unique},
 };
 use axum::{
     extract::{Path, State},
@@ -146,31 +147,10 @@ pub async fn create_toner(
     Json(request): Json<CreateTonerRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     // Validations
-    match request.validate() {
-        Ok(_) => (),
-        Err(e) => {
-            error!("Validation error: {:?}", e.0);
-            return Err(ApiError::ValidationError(e));
-        }
-    };
+    request.validate()?;
+    is_toner_unique(state.clone(), request.name.clone()).await?;
 
     let new_toner = Toner::new(&request.name, request.stock, request.price);
-
-    // Check for duplicate
-    let exists = sqlx::query(r#"SELECT id FROM toners WHERE name = $1;"#)
-        .bind(&new_toner.name)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| {
-            error!("Error checking for existing toner: {e}");
-            ApiError::DatabaseError(e)
-        })?
-        .is_some();
-
-    if exists {
-        error!("Toner '{}' already exists.", &new_toner.name);
-        return Err(ApiError::AlreadyExists);
-    }
 
     sqlx::query(r#"INSERT INTO toners (id, name, stock, price) VALUES ($1, $2, $3, $4);"#)
         .bind(new_toner.id)
@@ -214,59 +194,17 @@ pub async fn update_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateTonerRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+    toner_exists(state.clone(), request.id.clone()).await?;
+
     let toner_id = request.id;
     let new_name = request.name.clone();
     let new_stock = request.stock;
     let new_price = request.price;
 
-    // ID not found
-    let toner_exists = sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
-        .bind(toner_id)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| {
-            error!("Error fetching toner by ID: {e}");
-            ApiError::Unknown
-        })?
-        .is_some();
-
-    if !toner_exists {
-        error!("Toner ID not found.");
-        return Err(ApiError::IdNotFound);
-    }
-
     // Validate and update name if provided
     if let Some(name) = new_name {
-        if name.is_empty() {
-            error!("Toner name cannot be empty.");
-            return Err(ApiError::EmptyName);
-        }
-        if name.len() < 4 {
-            error!("Toner name is too short.");
-            return Err(ApiError::NameTooShort);
-        }
-        if name.len() > 20 {
-            error!("Toner name is too long.");
-            return Err(ApiError::NameTooLong);
-        }
-
-        // Check for duplicate
-        let name_exists = sqlx::query(r#"SELECT id FROM toners WHERE name = $1 AND id != $2;"#)
-            .bind(&name)
-            .bind(toner_id)
-            .fetch_optional(&state.db)
-            .await
-            .map_err(|e| {
-                error!("Error checking for duplicate toner name: {e}");
-                ApiError::Unknown
-            })?
-            .is_some();
-
-        if name_exists {
-            error!("Toner name already exists.");
-            return Err(ApiError::AlreadyExists);
-        }
-
         // Update toner name
         sqlx::query(r#"UPDATE toners SET name = $1 WHERE id = $2;"#)
             .bind(&name)
@@ -331,21 +269,8 @@ pub async fn delete_toner(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Check if the toner exists
-    let toner_exists = sqlx::query(r#"SELECT id FROM toners WHERE id = $1;"#)
-        .bind(request.id)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| {
-            error!("Error checking toner ID: {}", e);
-            ApiError::Unknown
-        })?
-        .is_some();
-
-    if !toner_exists {
-        error!("Toner ID not found.");
-        return Err(ApiError::IdNotFound);
-    }
+    // Validations
+    toner_exists(state.clone(), request.id.clone()).await?;
 
     // Delete the toner
     sqlx::query(r#"DELETE FROM toners WHERE id = $1;"#)
