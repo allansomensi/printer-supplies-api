@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Deserialize, Serialize, FromRow, ToSchema)]
 pub struct Brand {
@@ -18,13 +19,15 @@ impl Brand {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema, Validate)]
 pub struct CreateBrandRequest {
+    #[validate(length(min = 3, message = "Name must be greater than 3 chars"))]
     pub name: String,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema, Validate)]
 pub struct UpdateBrandRequest {
     pub id: Uuid,
+    #[validate(length(min = 3, message = "Name must be greater than 3 chars"))]
     pub name: String,
 }

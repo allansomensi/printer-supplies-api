@@ -40,3 +40,22 @@ pub async fn drum_exists(state: Arc<AppState>, drum_id: Uuid) -> Result<(), ApiE
         Ok(())
     }
 }
+
+pub async fn brand_exists(state: Arc<AppState>, brand_id: Uuid) -> Result<(), ApiError> {
+    let exists = sqlx::query(r#"SELECT id FROM brands WHERE id = $1;"#)
+        .bind(brand_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error fetching brand by ID: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .is_some();
+
+    if !exists {
+        error!("Brand ID not found.");
+        Err(ApiError::IdNotFound)
+    } else {
+        Ok(())
+    }
+}
