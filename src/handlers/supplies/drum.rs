@@ -5,6 +5,7 @@ use crate::{
         supplies::drum::{CreateDrumRequest, Drum, UpdateDrumRequest},
         DeleteRequest,
     },
+    validations::{existence::drum_exists, uniqueness::is_drum_unique},
 };
 use axum::{
     extract::{Path, State},
@@ -15,6 +16,7 @@ use axum::{
 use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
+use validator::Validate;
 
 /// Retrieves the total count of drums.
 ///
@@ -31,22 +33,19 @@ use uuid::Uuid;
         (status = 500, description = "An error occurred while retrieving the drum count")
     )
 )]
-pub async fn count_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let drum_count: Result<(i32,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT COUNT(*)::int FROM drums;"#)
-            .fetch_one(&state.db)
-            .await;
-
-    match drum_count {
-        Ok((count,)) => {
-            info!("Successfully retrieved drum count: {}", count);
-            Ok(Json(count))
-        }
-        Err(e) => {
+pub async fn count_drums(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let count = sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM drums;"#)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| {
             error!("Error retrieving drum count: {e}");
-            Err(ApiError::DatabaseError(e))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Successfully retrieved drum count: {count}");
+    Ok(Json(count))
 }
 
 /// Retrieves a specific drum by its ID.
@@ -72,22 +71,23 @@ pub async fn search_drum(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    match sqlx::query_as::<_, Drum>(r#"SELECT * FROM drums WHERE id = $1;"#)
+    let drum = sqlx::query_as::<_, Drum>(r#"SELECT * FROM drums WHERE id = $1;"#)
         .bind(id)
         .fetch_optional(&state.db)
         .await
-    {
-        Ok(Some(drum)) => {
+        .map_err(|e| {
+            error!("Error retrieving drum with id {id}: {e}");
+            ApiError::DatabaseError(e)
+        })?;
+
+    match drum {
+        Some(drum) => {
             info!("Drum found: {id}");
-            (StatusCode::OK, Json(Some(drum))).into_response()
+            Ok(Json(drum))
         }
-        Ok(None) => {
-            error!("No drum found.");
-            (ApiError::IdNotFound).into_response()
-        }
-        Err(e) => {
-            error!("Error retrieving drum: {e}");
-            (ApiError::DatabaseError(e)).into_response()
+        None => {
+            error!("No drum found with id: {id}");
+            Err(ApiError::IdNotFound)
         }
     }
 }
@@ -108,20 +108,17 @@ pub async fn search_drum(
         (status = 500, description = "An error occurred while retrieving the drums")
     )
 )]
-pub async fn show_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let drums: Result<Vec<Drum>, sqlx::Error> = sqlx::query_as(r#"SELECT * FROM drums;"#)
+pub async fn show_drums(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, ApiError> {
+    let drums = sqlx::query_as::<_, Drum>(r#"SELECT * FROM drums;"#)
         .fetch_all(&state.db)
-        .await;
-    match drums {
-        Ok(drums) => {
-            info!("Drums listed successfully");
-            Ok(Json(drums))
-        }
-        Err(e) => {
+        .await
+        .map_err(|e| {
             error!("Error listing drums: {e}");
-            Err(ApiError::DatabaseError(e))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Drums listed successfully");
+    Ok(Json(drums))
 }
 
 /// Create a new drum.
@@ -146,60 +143,27 @@ pub async fn show_drums(State(state): State<Arc<AppState>>) -> impl IntoResponse
 pub async fn create_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateDrumRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
     // Validations
-
-    // Name is empty
-    if request.name.is_empty() {
-        error!("Drum name cannot be empty.");
-        return ApiError::EmptyName.into_response();
-    }
-    // Name too short
-    if request.name.len() < 4 {
-        error!("Drum name is too short.");
-        return ApiError::NameTooShort.into_response();
-    }
-    // Name too long
-    if request.name.len() > 20 {
-        error!("Drum name is too long.");
-        return ApiError::NameTooLong.into_response();
-    }
+    request.validate()?;
+    is_drum_unique(state.clone(), request.name.clone()).await?;
 
     let new_drum = Drum::new(&request.name, request.stock, request.price);
 
-    // Check for duplicate drum name
-    match sqlx::query(r#"SELECT id FROM drums WHERE name = $1;"#)
+    sqlx::query(r#"INSERT INTO drums (id, name, stock, price) VALUES ($1, $2, $3, $4);"#)
+        .bind(new_drum.id)
         .bind(&new_drum.name)
-        .fetch_optional(&state.db)
+        .bind(new_drum.stock)
+        .bind(new_drum.price)
+        .execute(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            error!("Drum '{}' already exists.", &new_drum.name);
-            ApiError::AlreadyExists.into_response()
-        }
-        Ok(None) => {
-            match sqlx::query(
-                r#"INSERT INTO drums (id, name, stock, price) VALUES ($1, $2, $3, $4);"#,
-            )
-            .bind(new_drum.id)
-            .bind(&new_drum.name)
-            .bind(new_drum.stock)
-            .bind(new_drum.price)
-            .execute(&state.db)
-            .await
-            {
-                Ok(_) => {
-                    info!("Drum created! ID: {}", &new_drum.id);
-                    (StatusCode::CREATED, Json(new_drum.id)).into_response()
-                }
-                Err(e) => {
-                    error!("Error creating drum: {}", e);
-                    ApiError::DatabaseError(e).into_response()
-                }
-            }
-        }
-        Err(e) => ApiError::DatabaseError(e).into_response(),
-    }
+        .map_err(|e| {
+            error!("Error creating drum: {e}");
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Drum created! ID: {}", &new_drum.id);
+    Ok((StatusCode::CREATED, Json(new_drum.id)))
 }
 
 /// Updates an existing drum.
@@ -227,100 +191,58 @@ pub async fn create_drum(
 pub async fn update_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateDrumRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+    drum_exists(state.clone(), request.id.clone()).await?;
+
     let drum_id = request.id;
     let new_name = request.name.clone();
     let new_stock = request.stock;
     let new_price = request.price;
 
-    // ID not found
-    match sqlx::query(r#"SELECT id FROM drums WHERE id = $1;"#)
-        .bind(drum_id)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(_)) => {
-            if let Some(name) = new_name {
-                if name.is_empty() {
-                    error!("Drum name cannot be empty.");
-                    return ApiError::EmptyName.into_response();
-                }
-
-                if name.len() < 4 {
-                    error!("Drum name is too short.");
-                    return ApiError::NameTooShort.into_response();
-                }
-
-                if name.len() > 20 {
-                    error!("Drum name is too long.");
-                    return ApiError::NameTooLong.into_response();
-                }
-
-                // Check duplicate
-                match sqlx::query(r#"SELECT id FROM drums WHERE name = $1 AND id != $2;"#)
-                    .bind(&name)
-                    .bind(drum_id)
-                    .fetch_optional(&state.db)
-                    .await
-                {
-                    Ok(Some(_)) => {
-                        error!("Drum name already exists.");
-                        return ApiError::AlreadyExists.into_response();
-                    }
-                    Ok(None) => {
-                        if let Err(e) = sqlx::query(r#"UPDATE drums SET name = $1 WHERE id = $2;"#)
-                            .bind(&name)
-                            .bind(drum_id)
-                            .execute(&state.db)
-                            .await
-                        {
-                            error!("Error updating drum name: {e}");
-                            return ApiError::DatabaseError(e).into_response();
-                        }
-                    }
-                    Err(e) => {
-                        error!("Error checking for duplicate drum name: {e}");
-                        return ApiError::Unknown.into_response();
-                    }
-                }
-            }
-
-            if let Some(stock) = new_stock {
-                if let Err(e) = sqlx::query(r#"UPDATE drums SET stock = $1 WHERE id = $2;"#)
-                    .bind(stock)
-                    .bind(drum_id)
-                    .execute(&state.db)
-                    .await
-                {
-                    error!("Error updating drum stock: {e}");
-                    return ApiError::DatabaseError(e).into_response();
-                }
-            }
-
-            if let Some(price) = new_price {
-                if let Err(e) = sqlx::query(r#"UPDATE drums SET price = $1 WHERE id = $2;"#)
-                    .bind(price)
-                    .bind(drum_id)
-                    .execute(&state.db)
-                    .await
-                {
-                    error!("Error updating drum price: {e}");
-                    return ApiError::DatabaseError(e).into_response();
-                }
-            }
-
-            info!("Drum updated! ID: {}", &drum_id);
-            (StatusCode::OK, Json(drum_id)).into_response()
-        }
-        Ok(None) => {
-            error!("Drum ID not found.");
-            ApiError::IdNotFound.into_response()
-        }
-        Err(e) => {
-            error!("Error fetching drum by ID: {e}");
-            ApiError::Unknown.into_response()
-        }
+    // Validate and update name if provided
+    if let Some(name) = new_name {
+        // Update drum name
+        sqlx::query(r#"UPDATE drums SET name = $1 WHERE id = $2;"#)
+            .bind(&name)
+            .bind(drum_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating drum name: {e}");
+                ApiError::DatabaseError(e)
+            })?;
     }
+
+    // Update stock if provided
+    if let Some(stock) = new_stock {
+        sqlx::query(r#"UPDATE drums SET stock = $1 WHERE id = $2;"#)
+            .bind(stock)
+            .bind(drum_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating drum stock: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+    }
+
+    // Update price if provided
+    if let Some(price) = new_price {
+        sqlx::query(r#"UPDATE drums SET price = $1 WHERE id = $2;"#)
+            .bind(price)
+            .bind(drum_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating drum price: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+    }
+
+    info!("Drum updated! ID: {}", &drum_id);
+    Ok((StatusCode::OK, Json(drum_id)).into_response())
 }
 
 /// Deletes an existing drum.
@@ -344,35 +266,20 @@ pub async fn update_drum(
 pub async fn delete_drum(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
-) -> impl IntoResponse {
-    match sqlx::query(r#"SELECT id FROM drums WHERE id = $1;"#)
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    drum_exists(state.clone(), request.id.clone()).await?;
+
+    // Delete the drum
+    sqlx::query(r#"DELETE FROM drums WHERE id = $1;"#)
         .bind(request.id)
-        .fetch_optional(&state.db)
+        .execute(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            match sqlx::query(r#"DELETE FROM drums WHERE id = $1;"#)
-                .bind(request.id)
-                .execute(&state.db)
-                .await
-            {
-                Ok(_) => {
-                    info!("Drum deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Json("Drum deleted!")).into_response()
-                }
-                Err(e) => {
-                    error!("Error deleting drum: {}", e);
-                    ApiError::DatabaseError(e).into_response()
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Drum ID not found.");
-            ApiError::IdNotFound.into_response()
-        }
-        Err(e) => {
+        .map_err(|e| {
             error!("Error deleting drum: {}", e);
-            ApiError::Unknown.into_response()
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Drum deleted! ID: {}", &request.id);
+    Ok((StatusCode::OK, Json("Drum deleted!")).into_response())
 }
