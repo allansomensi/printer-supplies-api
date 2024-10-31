@@ -40,3 +40,22 @@ pub async fn is_drum_unique(state: Arc<AppState>, drum_name: String) -> Result<(
         Ok(())
     }
 }
+
+pub async fn is_brand_unique(state: Arc<AppState>, brand_name: String) -> Result<(), ApiError> {
+    let exists = sqlx::query(r#"SELECT id FROM brands WHERE name = $1;"#)
+        .bind(&brand_name)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error checking for existing brand: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .is_some();
+
+    if exists {
+        error!("Brand '{}' already exists.", &brand_name);
+        Err(ApiError::AlreadyExists)
+    } else {
+        Ok(())
+    }
+}
