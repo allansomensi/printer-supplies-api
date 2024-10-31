@@ -1,6 +1,6 @@
 use crate::{
     database::AppState,
-    errors::ApiError,
+    errors::api_error::ApiError,
     models::{
         supplies::toner::{CreateTonerRequest, Toner, UpdateTonerRequest},
         DeleteRequest,
