@@ -1,11 +1,12 @@
 use crate::{
     database::AppState,
+    errors::api_error::ApiError,
     models::status::{Database, Dependencies, Status},
 };
-use axum::{extract::State, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 use chrono::Utc;
 use std::{env, sync::Arc};
-use tracing::info;
+use tracing::{error, info};
 
 /// Retrieves the current status of the API, including the database connection status.
 /// Provides information on the database version, maximum connections, and currently open connections.
@@ -20,35 +21,47 @@ use tracing::info;
         (status = 200, description = "Status retrieved successfully", body = Status)
     )
 )]
-pub async fn show_status(State(state): State<Arc<AppState>>) -> Json<Status> {
-    let db_version: (String,) = sqlx::query_as(r#"SHOW server_version;"#)
+pub async fn show_status(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let version = sqlx::query_scalar::<_, String>(r#"SHOW server_version;"#)
         .fetch_one(&state.db)
         .await
-        .unwrap();
+        .map_err(|e| {
+            error!("Error retrieving database version: {e}");
+            ApiError::DatabaseError(e)
+        })?;
 
-    let max_connections: (String,) = sqlx::query_as(r#"SHOW max_connections;"#)
+    let max_connections = sqlx::query_scalar::<_, String>(r#"SHOW max_connections;"#)
         .fetch_one(&state.db)
         .await
-        .unwrap();
-    let max_connections: u16 = max_connections.0.parse().unwrap();
+        .map_err(|e| {
+            error!("Error retrieving database max connections: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .parse::<i64>()
+        .expect("Error parsing max_connections as i64");
 
-    let opened_connections: (i32,) =
-        sqlx::query_as(r#"SELECT count(*)::int FROM pg_stat_activity WHERE datname = $1;"#)
-            .bind(env::var("POSTGRES_DB").unwrap())
-            .fetch_one(&state.db)
-            .await
-            .unwrap();
-    let opened_connections: u16 = opened_connections.0 as u16;
+    let opened_connections = sqlx::query_scalar::<_, i64>(
+        r#"SELECT count(*) FROM pg_stat_activity WHERE datname = $1;"#,
+    )
+    .bind(env::var("POSTGRES_DB").unwrap())
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        error!("Error retrieving database opened connections: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
     let database = Database {
-        version: db_version.0,
+        version,
         max_connections,
         opened_connections,
     };
 
     info!("Status queried");
-    Json(Status {
+    Ok(Json(Status {
         updated_at: Utc::now(),
         dependencies: Dependencies { database },
-    })
+    }))
 }
