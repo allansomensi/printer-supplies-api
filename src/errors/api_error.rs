@@ -14,15 +14,6 @@ pub enum ApiError {
     #[error("The provided ID does not correspond to any existing resource.")]
     IdNotFound,
 
-    #[error("The name field must not be empty.")]
-    EmptyName,
-
-    #[error("The provided name is too short. It must be at least 4 characters long.")]
-    NameTooShort,
-
-    #[error("The provided name is too long. It must not exceed 20 characters.")]
-    NameTooLong,
-
     #[error("A resource with the provided name already exists.")]
     AlreadyExists,
 
@@ -64,32 +55,6 @@ impl IntoResponse for ApiError {
                     details: Some(String::from(
                         "Please verify that the ID is correct and try again.",
                     )),
-                },
-            ),
-            ApiError::EmptyName => (
-                StatusCode::BAD_REQUEST,
-                ErrorResponse {
-                    code: String::from("EMPTY_NAME"),
-                    message: String::from("The name cannot be empty."),
-                    details: Some(String::from(
-                        "Please provide a name with at least 4 characters.",
-                    )),
-                },
-            ),
-            ApiError::NameTooShort => (
-                StatusCode::BAD_REQUEST,
-                ErrorResponse {
-                    code: String::from("NAME_TOO_SHORT"),
-                    message: String::from("The provided name is too short."),
-                    details: Some(String::from("The name must be at least 4 characters long.")),
-                },
-            ),
-            ApiError::NameTooLong => (
-                StatusCode::BAD_REQUEST,
-                ErrorResponse {
-                    code: String::from("NAME_TOO_LONG"),
-                    message: String::from("The provided name is too long."),
-                    details: Some(String::from("The name must not exceed 20 characters.")),
                 },
             ),
             ApiError::AlreadyExists => (
