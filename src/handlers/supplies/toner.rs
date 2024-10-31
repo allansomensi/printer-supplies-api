@@ -15,6 +15,7 @@ use axum::{
 use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
+use validator::Validate;
 
 /// Retrieves the total count of toners.
 ///
@@ -145,18 +146,13 @@ pub async fn create_toner(
     Json(request): Json<CreateTonerRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     // Validations
-    if request.name.is_empty() {
-        error!("Toner name cannot be empty.");
-        return Err(ApiError::EmptyName);
-    }
-    if request.name.len() < 4 {
-        error!("Toner name is too short.");
-        return Err(ApiError::NameTooShort);
-    }
-    if request.name.len() > 20 {
-        error!("Toner name is too long.");
-        return Err(ApiError::NameTooLong);
-    }
+    match request.validate() {
+        Ok(_) => (),
+        Err(e) => {
+            error!("Validation error: {:?}", e.0);
+            return Err(ApiError::ValidationError(e));
+        }
+    };
 
     let new_toner = Toner::new(&request.name, request.stock, request.price);
 
