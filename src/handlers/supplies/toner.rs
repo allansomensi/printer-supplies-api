@@ -31,21 +31,19 @@ use uuid::Uuid;
         (status = 500, description = "An error occurred while retrieving the toner count")
     )
 )]
-pub async fn count_toners(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let toner_count: Result<(i32,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT COUNT(*)::int FROM toners;"#)
-            .fetch_one(&state.db)
-            .await;
-    match toner_count {
-        Ok((count,)) => {
-            info!("Successfully retrieved toner count: {}", count);
-            Ok(Json(count))
-        }
-        Err(e) => {
+pub async fn count_toners(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let count = sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM toners;"#)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| {
             error!("Error retrieving toner count: {e}");
-            Err(ApiError::DatabaseError(e))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Successfully retrieved toner count: {count}");
+    Ok(Json(count))
 }
 
 /// Retrieves a specific toner by its ID.
@@ -70,23 +68,24 @@ pub async fn count_toners(State(state): State<Arc<AppState>>) -> impl IntoRespon
 pub async fn search_toner(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    match sqlx::query_as::<_, Toner>(r#"SELECT * FROM toners WHERE id = $1;"#)
+) -> Result<impl IntoResponse, ApiError> {
+    let toner = sqlx::query_as::<_, Toner>(r#"SELECT * FROM toners WHERE id = $1;"#)
         .bind(id)
         .fetch_optional(&state.db)
         .await
-    {
-        Ok(Some(toner)) => {
+        .map_err(|e| {
+            error!("Error retrieving toner with id {id}: {e}");
+            ApiError::DatabaseError(e)
+        })?;
+
+    match toner {
+        Some(toner) => {
             info!("Toner found: {id}");
-            (StatusCode::OK, Json(Some(toner))).into_response()
+            Ok(Json(toner))
         }
-        Ok(None) => {
-            error!("No toner found.");
-            (ApiError::IdNotFound).into_response()
-        }
-        Err(e) => {
-            error!("Error retrieving toner: {e}");
-            (ApiError::DatabaseError(e)).into_response()
+        None => {
+            error!("No toner found with id: {id}");
+            Err(ApiError::IdNotFound)
         }
     }
 }
