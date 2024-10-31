@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{database::AppState, errors::ApiError};
+use crate::{database::AppState, errors::api_error::ApiError};
 use tracing::error;
 
 pub async fn is_toner_unique(state: Arc<AppState>, toner_name: String) -> Result<(), ApiError> {
