@@ -1,4 +1,4 @@
-use crate::database::AppState;
+use crate::{database::AppState, errors::api_error::ApiError};
 use axum::{extract::State, response::IntoResponse, Json};
 use sqlx::migrate;
 use std::sync::Arc;
@@ -13,7 +13,6 @@ pub async fn dry_run() {
 /// This endpoint allows users to apply any pending database migrations.
 /// It checks for migrations that need to be applied and executes them.
 /// If the migrations are applied successfully, a confirmation message is returned.
-
 #[utoipa::path(
     post,
     path = "/api/v1/migrations",
@@ -25,15 +24,12 @@ pub async fn dry_run() {
         (status = 500, description = "An error occurred while applying migrations")
     )
 )]
-pub async fn live_run(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    match migrate!("./migrations").run(&state.db).await {
-        Ok(_) => {
-            info!("Migrations applied successfully!");
-            Json(String::from("Migrations applied successfully!"))
-        }
-        Err(e) => {
-            error!("Error applying migrations: {e}");
-            Json(String::from("Error applying migrations."))
-        }
-    }
+pub async fn live_run(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, ApiError> {
+    migrate!("./migrations").run(&state.db).await.map_err(|e| {
+        error!("Error applying migrations: {e}");
+        ApiError::DatabaseError(e.into())
+    })?;
+
+    info!("Migrations applied successfully!");
+    Ok(Json("Migrations applied successfully!"))
 }
