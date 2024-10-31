@@ -8,6 +8,9 @@ pub enum ApiError {
     #[error("An error occurred while connecting to the database: {0}")]
     DatabaseError(#[from] sqlx::Error),
 
+    #[error("One or more validation errors occurred: {0}")]
+    ValidationError(#[from] validator::ValidationErrors),
+
     #[error("The provided ID does not correspond to any existing resource.")]
     IdNotFound,
 
@@ -43,6 +46,14 @@ impl IntoResponse for ApiError {
                     code: String::from("DATABASE_ERROR"),
                     message: String::from("An unexpected database error occurred."),
                     details: Some(String::from("Please try again later or contact support.")),
+                },
+            ),
+            ApiError::ValidationError(e) => (
+                StatusCode::BAD_REQUEST,
+                ErrorResponse {
+                    code: String::from("VALIDATION_ERROR"),
+                    message: String::from("One or more validation errors occurred."),
+                    details: Some(e.to_string()),
                 },
             ),
             ApiError::IdNotFound => (
