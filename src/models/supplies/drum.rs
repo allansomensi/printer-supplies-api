@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Deserialize, Serialize, FromRow, ToSchema)]
 pub struct Drum {
@@ -35,17 +36,21 @@ impl Drum {
     }
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema, Validate)]
 pub struct CreateDrumRequest {
+    #[validate(length(min = 3, message = "Name must be greater than 3 chars"))]
     pub name: String,
+    #[validate(range(min = 0, message = "Stock must be greater or equal than 0"))]
     pub stock: Option<i32>,
     pub price: Option<Decimal>,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema, Validate)]
 pub struct UpdateDrumRequest {
     pub id: Uuid,
+    #[validate(length(min = 3, message = "Name must be greater than 3 chars"))]
     pub name: Option<String>,
+    #[validate(range(min = 0, message = "Stock must be greater or equal than 0"))]
     pub stock: Option<i32>,
     pub price: Option<Decimal>,
 }
