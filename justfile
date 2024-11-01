@@ -35,7 +35,7 @@ run:
     @cargo run
 
 run-watch:
-    @cargo watch -q -c -x run
+    @cargo watch -q -c -x run -i logs/
 
 test:
     @cargo test

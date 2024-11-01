@@ -10,4 +10,4 @@ target/
 # Added by cargo
 
 /target
-logs/*
+/logs

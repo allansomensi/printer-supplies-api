@@ -21,7 +21,10 @@ impl Config {
             }
         }
 
-        let file_appender = rolling::daily("logs", "app.log");
+        let rust_log_file = EnvFilter::from_env("RUST_LOG_FILE");
+        let rust_log_console = EnvFilter::from_env("RUST_LOG_CONSOLE");
+
+        let file_appender = rolling::daily("logs", "api.log");
 
         let file_layer = fmt::Layer::new()
             .with_timer(UtcFormattedTime)
@@ -30,7 +33,7 @@ impl Config {
             .with_ansi(false)
             .with_line_number(true)
             .with_target(false)
-            .with_filter(EnvFilter::new("trace"));
+            .with_filter(rust_log_file);
 
         let console_layer = fmt::Layer::new()
             .pretty()
@@ -39,7 +42,7 @@ impl Config {
             .with_ansi(true)
             .with_line_number(false)
             .with_target(false)
-            .with_filter(EnvFilter::new("info"));
+            .with_filter(rust_log_console);
 
         let subscriber = Registry::default().with(console_layer).with(file_layer);
 
