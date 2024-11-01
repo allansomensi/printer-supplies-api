@@ -78,3 +78,22 @@ pub async fn printer_exists(state: Arc<AppState>, printer_id: Uuid) -> Result<()
         Ok(())
     }
 }
+
+pub async fn movement_exists(state: Arc<AppState>, movement_id: Uuid) -> Result<(), ApiError> {
+    let exists = sqlx::query(r#"SELECT id FROM movements WHERE id = $1;"#)
+        .bind(movement_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error fetching movement by ID: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .is_some();
+
+    if !exists {
+        error!("Movement ID not found.");
+        Err(ApiError::IdNotFound)
+    } else {
+        Ok(())
+    }
+}

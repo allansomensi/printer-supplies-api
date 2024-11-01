@@ -1,23 +1,25 @@
 use crate::{
     database::AppState,
+    errors::api_error::ApiError,
     models::{
         movement::{
-            CreateMovementRequest, ItemDetails, Movement, MovementDetails, PrinterDetails,
-            UpdateMovementRequest,
+            CreateMovementRequest, ItemDetails, Movement, MovementDetails, MovementView,
+            PrinterDetails, UpdateMovementRequest,
         },
         DeleteRequest,
     },
+    validations::existence::movement_exists,
 };
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
-use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 use uuid::Uuid;
+use validator::Validate;
 
 /// Retrieves the total count of movements.
 ///
@@ -34,25 +36,19 @@ use uuid::Uuid;
         (status = 500, description = "An error occurred while retrieving the movement count")
     )
 )]
-pub async fn count_movements(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let movement_count: Result<(i32,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT COUNT(*)::int FROM movements;"#)
-            .fetch_one(&state.db)
-            .await;
-
-    match movement_count {
-        Ok((count,)) => {
-            info!("Successfully retrieved movement count: {}", count);
-            Ok((StatusCode::OK, Json(count)))
-        }
-        Err(e) => {
+pub async fn count_movements(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let count = sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM movements;"#)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| {
             error!("Error retrieving movement count: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error retrieving movement count."),
-            ))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Successfully retrieved movement count: {count}");
+    Ok(Json(count))
 }
 
 /// Retrieves a specific movement by its ID.
@@ -77,20 +73,8 @@ pub async fn count_movements(State(state): State<Arc<AppState>>) -> impl IntoRes
 pub async fn search_movement(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    type MovementView = Option<(
-        Uuid,          // movement_id
-        Uuid,          // printer_id
-        String,        // printer_name
-        String,        // printer_model
-        Uuid,          // item_id
-        String,        // item_name
-        i32,           // item_stock
-        i32,           // quantity
-        DateTime<Utc>, // created_at
-    )>;
-
-    let movement: Result<MovementView, sqlx::Error> = sqlx::query_as(
+) -> Result<impl IntoResponse, ApiError> {
+    let movement = sqlx::query_as::<_, MovementView>(
         r#"
         SELECT 
             m.id AS movement_id,
@@ -105,10 +89,6 @@ pub async fn search_movement(
                 WHEN t.id IS NOT NULL THEN t.name
                 ELSE d.name
             END AS item_name,
-            CASE
-                WHEN t.id IS NOT NULL THEN t.stock
-                ELSE d.stock
-            END AS item_stock,
             m.quantity AS quantity,
             m.created_at AS created_at
         FROM movements m
@@ -120,10 +100,14 @@ pub async fn search_movement(
     )
     .bind(id)
     .fetch_optional(&state.db)
-    .await;
+    .await
+    .map_err(|e| {
+        error!("Error retrieving movement with id {id}: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
     match movement {
-        Ok(Some(row)) => {
+        Some(row) => {
             let movement = MovementDetails {
                 id: row.0,
                 printer: PrinterDetails {
@@ -134,22 +118,17 @@ pub async fn search_movement(
                 item: ItemDetails {
                     id: row.4,
                     name: row.5,
-                    stock: row.6,
                 },
-                quantity: row.7,
-                created_at: row.8,
+                quantity: row.6,
+                created_at: row.7,
             };
 
             info!("Movement found: {id}");
-            (StatusCode::OK, Json(Some(movement)))
+            Ok((StatusCode::OK, Json(Some(movement))))
         }
-        Ok(None) => {
+        None => {
             error!("No movement found.");
-            (StatusCode::NOT_FOUND, Json(None))
-        }
-        Err(e) => {
-            error!("Error retrieving movement: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
+            Err(ApiError::IdNotFound)
         }
     }
 }
@@ -170,20 +149,10 @@ pub async fn search_movement(
         (status = 500, description = "An error occurred while retrieving the movements")
     )
 )]
-pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    type MovementView = Vec<(
-        Uuid,
-        Uuid,
-        String,
-        String,
-        Uuid,
-        String,
-        i32,
-        i32,
-        DateTime<Utc>,
-    )>;
-
-    let movements: Result<MovementView, sqlx::Error> = sqlx::query_as(
+pub async fn show_movements(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let movements = sqlx::query_as::<_, MovementView>(
         r#"
         SELECT 
             m.id AS movement_id,
@@ -198,10 +167,6 @@ pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResp
                 WHEN t.id IS NOT NULL THEN t.name
                 ELSE d.name
             END AS item_name,
-            CASE
-                WHEN t.id IS NOT NULL THEN t.stock
-                ELSE d.stock
-            END AS item_stock,
             m.quantity AS quantity,
             m.created_at AS created_at
         FROM movements m
@@ -211,40 +176,32 @@ pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResp
         "#,
     )
     .fetch_all(&state.db)
-    .await;
+    .await
+    .map_err(|e| {
+        error!("Error listing printers: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
-    match movements {
-        Ok(rows) => {
-            let movements = rows
-                .into_iter()
-                .map(|row| MovementDetails {
-                    id: row.0,
-                    printer: PrinterDetails {
-                        id: row.1,
-                        name: row.2,
-                        model: row.3,
-                    },
-                    item: ItemDetails {
-                        id: row.4,
-                        name: row.5,
-                        stock: row.6,
-                    },
-                    quantity: row.7,
-                    created_at: row.8,
-                })
-                .collect::<Vec<MovementDetails>>();
+    let movements: Vec<MovementDetails> = movements
+        .into_iter()
+        .map(|row| MovementDetails {
+            id: row.0,
+            printer: PrinterDetails {
+                id: row.1,
+                name: row.2,
+                model: row.3,
+            },
+            item: ItemDetails {
+                id: row.4,
+                name: row.5,
+            },
+            quantity: row.6,
+            created_at: row.7,
+        })
+        .collect();
 
-            info!("Movements listed successfully");
-            Ok(Json(movements))
-        }
-        Err(e) => {
-            error!("Error listing movements: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error listing movements."),
-            ))
-        }
-    }
+    info!("Movements listed successfully");
+    Ok(Json(movements))
 }
 
 /// Create a new movement.
@@ -266,94 +223,81 @@ pub async fn show_movements(State(state): State<Arc<AppState>>) -> impl IntoResp
 pub async fn create_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateMovementRequest>,
-) -> impl IntoResponse {
-    let new_movement = Movement::new(request.printer_id, request.item_id, request.quantity);
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+
+    let new_movement = Movement::new(
+        Uuid::from_str(&request.printer_id).unwrap(),
+        Uuid::from_str(&request.item_id).unwrap(),
+        request.quantity,
+    );
 
     // Check if the item exists in toners or drums
-    let toner_exists =
-        sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM toners WHERE id = $1);"#)
-            .bind(request.item_id)
-            .fetch_one(&state.db)
-            .await;
+    let item_exists: (bool, bool) = sqlx::query_as(
+        r#"
+        SELECT 
+            EXISTS(SELECT 1 FROM toners WHERE id = $1) AS toner_exists,
+            EXISTS(SELECT 1 FROM drums WHERE id = $1) AS drum_exists;
+        "#,
+    )
+    .bind(&new_movement.item_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| {
+        error!("Database error: {}", e);
+        ApiError::DatabaseError(e)
+    })?;
 
-    let drum_exists =
-        sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM drums WHERE id = $1);"#)
-            .bind(request.item_id)
-            .fetch_one(&state.db)
-            .await;
+    let (toner_exists, drum_exists) = item_exists;
 
-    match (&toner_exists, &drum_exists) {
-        (Ok(true), _) | (_, Ok(true)) => {
-            // Check that quantity is not zero
-            if new_movement.quantity == 0 {
-                error!("Quantity cannot be zero.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Quantity must be non-zero.")),
-                );
-            }
-
-            // Update stock
-            let update_stock = if toner_exists.unwrap() {
-                r#"UPDATE toners SET stock = stock + $1 WHERE id = $2;"#
-            } else {
-                r#"UPDATE drums SET stock = stock + $1 WHERE id = $2;"#
-            };
-
-            match sqlx::query(update_stock)
-                .bind(new_movement.quantity)
-                .bind(request.item_id)
-                .execute(&state.db)
-                .await
-            {
-                Ok(_) => {
-                    // Insert the new movement record
-                    match sqlx::query(
-                        r#"
-                        INSERT INTO movements (id, printer_id, item_id, quantity, created_at) 
-                        VALUES ($1, $2, $3, $4, $5);"#,
-                    )
-                    .bind(new_movement.id)
-                    .bind(new_movement.printer_id)
-                    .bind(new_movement.item_id)
-                    .bind(new_movement.quantity)
-                    .bind(new_movement.created_at)
-                    .execute(&state.db)
-                    .await
-                    {
-                        Ok(_) => {
-                            info!("Movement created! ID: {}", &new_movement.id);
-                            (StatusCode::CREATED, Ok(Json(new_movement.id)))
-                        }
-                        Err(e) => {
-                            error!("Error creating movement: {}", e);
-                            (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Err(Json("Error creating movement.")),
-                            )
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error updating stock: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating stock.")),
-                    )
-                }
-            }
-        }
-        _ => {
-            error!(
-                "Item with ID '{}' not found in toners or drums.",
-                request.item_id
-            );
-            (
-                StatusCode::NOT_FOUND,
-                Err(Json("Item not found in toners or drums.")),
-            )
-        }
+    // Check if the item exists
+    if !(toner_exists || drum_exists) {
+        error!(
+            "Item with ID '{}' not found in toners or drums.",
+            &new_movement.item_id
+        );
+        return Err(ApiError::IdNotFound);
     }
+
+    // Update stock
+    let update_stock_query = if toner_exists {
+        r#"UPDATE toners SET stock = stock + $1 WHERE id = $2;"#
+    } else {
+        r#"UPDATE drums SET stock = stock + $1 WHERE id = $2;"#
+    };
+
+    sqlx::query(update_stock_query)
+        .bind(new_movement.quantity)
+        .bind(new_movement.item_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error updating stock: {}", e);
+            ApiError::DatabaseError(e)
+        })?;
+
+    // Create the movement
+    sqlx::query(
+        r#"
+        INSERT INTO movements (id, printer_id, item_id, quantity, created_at) 
+        VALUES ($1, $2, $3, $4, $5);
+        "#,
+    )
+    .bind(new_movement.id)
+    .bind(new_movement.printer_id)
+    .bind(new_movement.item_id)
+    .bind(new_movement.quantity)
+    .bind(new_movement.created_at)
+    .execute(&state.db)
+    .await
+    .map_err(|e| {
+        error!("Error creating movement: {}", e);
+        ApiError::DatabaseError(e)
+    })?;
+
+    info!("Movement created! ID: {}", &new_movement.id);
+    Ok((StatusCode::CREATED, Json(new_movement.id)))
 }
 
 /// Updates an existing movement.
@@ -378,58 +322,111 @@ pub async fn create_movement(
 pub async fn update_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateMovementRequest>,
-) -> impl IntoResponse {
-    let movement_id = request.id;
-    let new_printer_id = request.printer_id;
-    let new_item_id = request.item_id;
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+    movement_exists(
+        state.clone(),
+        Uuid::parse_str(request.id.clone().as_str()).unwrap(),
+    )
+    .await?;
+
+    let movement_id = Uuid::parse_str(request.id.clone().as_str()).unwrap();
+    let new_printer_id = request
+        .printer_id
+        .map(|d| Uuid::from_str(&d).ok())
+        .flatten();
+    let new_item_id = request.item_id.map(|d| Uuid::from_str(&d).ok()).flatten();
     let new_quantity = request.quantity;
 
-    // Not found
-    match sqlx::query(r#"SELECT id FROM movements WHERE id = $1;"#)
-        .bind(movement_id)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(_)) => {
-            match sqlx::query(
-                r#"UPDATE movements 
-                    SET printer_id = $1,
-                        item_id = $2,
-                        quantity = $3
-                    WHERE id = $4;"#,
-            )
-            .bind(new_printer_id)
-            .bind(new_item_id)
-            .bind(new_quantity)
-            .bind(movement_id)
+    let mut updated = false;
+
+    // Update printer if provided
+    if let Some(printer) = new_printer_id {
+        sqlx::query(r#"UPDATE movements SET printer_id = $1 WHERE id = $2;"#)
+            .bind(printer)
+            .bind(&movement_id)
             .execute(&state.db)
             .await
-            {
-                Ok(_) => {
-                    info!("Movement updated! ID: {}", &movement_id);
-                    (StatusCode::OK, Ok(Json(movement_id)))
-                }
-                Err(e) => {
-                    error!("Error updating movement: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error updating movement.")),
-                    )
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Movement ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Movement ID not found.")))
-        }
-        Err(e) => {
-            error!("Error updating movement: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error updating movement.")),
-            )
+            .map_err(|e| {
+                error!("Error updating movement printer: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    // Check if the item is a toner
+    let toner_exists =
+        sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM toners WHERE id = $1);"#)
+            .bind(&new_item_id)
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer name: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+
+    if toner_exists {
+        sqlx::query(r#"UPDATE movements SET item_id = $1 WHERE id = $2;"#)
+            .bind(&new_item_id)
+            .bind(&movement_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating movement toner: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    } else {
+        // If a toner does not exist, check if a drum exists and, if possible, update it.
+        let drum_exists =
+            sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM drums WHERE id = $1);"#)
+                .bind(&new_item_id)
+                .fetch_one(&state.db)
+                .await
+                .map_err(|e| {
+                    error!("Error updating printer name: {e}");
+                    ApiError::DatabaseError(e)
+                })?;
+
+        if drum_exists {
+            sqlx::query(r#"UPDATE movements SET item_id = $1 WHERE id = $2;"#)
+                .bind(&new_item_id)
+                .bind(&movement_id)
+                .execute(&state.db)
+                .await
+                .map_err(|e| {
+                    error!("Error updating movement drum: {e}");
+                    ApiError::DatabaseError(e)
+                })?;
+            updated = true;
         }
     }
+
+    // Update quantity if provided
+    if let Some(quantity) = new_quantity {
+        sqlx::query(r#"UPDATE movements SET quantity = $1 WHERE id = $2;"#)
+            .bind(&quantity)
+            .bind(&movement_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating movement quantity: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    if !updated {
+        error!(
+            "No updates were made for the provided movement ID: {}",
+            &movement_id
+        );
+        return Err(ApiError::NotModified);
+    }
+
+    info!("Movement updated! ID: {}", &movement_id);
+    Ok(Json(movement_id))
 }
 
 /// Deletes an existing movement.
@@ -453,41 +450,20 @@ pub async fn update_movement(
 pub async fn delete_movement(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
-) -> impl IntoResponse {
-    match sqlx::query(r#"SELECT id FROM movements WHERE id = $1;"#)
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    movement_exists(state.clone(), request.id.clone()).await?;
+
+    // Delete the movement
+    sqlx::query(r#"DELETE FROM movements WHERE id = $1;"#)
         .bind(request.id)
-        .fetch_optional(&state.db)
+        .execute(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            match sqlx::query(r#"DELETE FROM movements WHERE id = $1;"#)
-                .bind(request.id)
-                .execute(&state.db)
-                .await
-            {
-                Ok(_) => {
-                    info!("Movement deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Ok(Json("Movement deleted!")))
-                }
-                Err(e) => {
-                    error!("Error deleting movement: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Ok(Json("Error deleting movement.")),
-                    )
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Movement ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Movement ID not found")))
-        }
-        Err(e) => {
+        .map_err(|e| {
             error!("Error deleting movement: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error deleting movement.")),
-            )
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Movement deleted! ID: {}", &request.id);
+    Ok(Json("Movement deleted!"))
 }
