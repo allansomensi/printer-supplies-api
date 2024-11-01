@@ -17,6 +17,9 @@ pub enum ApiError {
     #[error("A resource with the provided name already exists.")]
     AlreadyExists,
 
+    #[error("No updates were made for the provided ID.")]
+    NotModified,
+
     #[error("An unknown error occurred. Please try again later.")]
     Unknown,
 }
@@ -54,6 +57,16 @@ impl IntoResponse for ApiError {
                     message: String::from("The provided ID does not exist."),
                     details: Some(String::from(
                         "Please verify that the ID is correct and try again.",
+                    )),
+                },
+            ),
+            ApiError::NotModified => (
+                StatusCode::NOT_MODIFIED,
+                ErrorResponse {
+                    code: String::from("NOT_MODIFIED"),
+                    message: String::from("No updates were made for the provided ID."),
+                    details: Some(String::from(
+                        "The provided ID may not exist, or no fields were changed. Please verify the ID and the update values.",
                     )),
                 },
             ),
