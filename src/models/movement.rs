@@ -1,8 +1,10 @@
+use crate::validations::uuid::is_uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Deserialize, Serialize, FromRow)]
 pub struct Movement {
@@ -25,6 +27,17 @@ impl Movement {
     }
 }
 
+pub type MovementView = (
+    Uuid,          // movement_id
+    Uuid,          // printer_id
+    String,        // printer_name
+    String,        // printer_model
+    Uuid,          // item_id
+    String,        // item_name
+    i32,           // quantity
+    DateTime<Utc>, // created_at
+);
+
 #[derive(Serialize, ToSchema)]
 pub struct MovementDetails {
     pub id: Uuid,
@@ -38,7 +51,6 @@ pub struct MovementDetails {
 pub struct ItemDetails {
     pub id: Uuid,
     pub name: String,
-    pub stock: i32,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -48,17 +60,22 @@ pub struct PrinterDetails {
     pub model: String,
 }
 
-#[derive(Deserialize, Serialize, FromRow, ToSchema)]
+#[derive(Deserialize, Serialize, FromRow, ToSchema, Validate)]
 pub struct CreateMovementRequest {
-    pub printer_id: Uuid,
-    pub item_id: Uuid,
+    #[validate(custom(function = "is_uuid"))]
+    pub printer_id: String,
+    #[validate(custom(function = "is_uuid"))]
+    pub item_id: String,
     pub quantity: i32,
 }
 
-#[derive(Deserialize, Serialize, FromRow, ToSchema)]
+#[derive(Deserialize, Serialize, FromRow, ToSchema, Validate)]
 pub struct UpdateMovementRequest {
-    pub id: Uuid,
-    pub printer_id: Uuid,
-    pub item_id: Uuid,
-    pub quantity: i32,
+    #[validate(custom(function = "is_uuid"))]
+    pub id: String,
+    #[validate(custom(function = "is_uuid"))]
+    pub printer_id: Option<String>,
+    #[validate(custom(function = "is_uuid"))]
+    pub item_id: Option<String>,
+    pub quantity: Option<i32>,
 }
