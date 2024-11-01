@@ -19,9 +19,6 @@ pub enum ApiError {
 
     #[error("No updates were made for the provided ID.")]
     NotModified,
-
-    #[error("An unknown error occurred. Please try again later.")]
-    Unknown,
 }
 
 #[derive(serde::Serialize)]
@@ -76,14 +73,6 @@ impl IntoResponse for ApiError {
                     code: String::from("ALREADY_EXISTS"),
                     message: String::from("A resource with the provided details already exists."),
                     details: Some(String::from("Please choose a different name.")),
-                },
-            ),
-            ApiError::Unknown => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorResponse {
-                    code: String::from("UNKNOWN_ERROR"),
-                    message: String::from("An unknown error occurred."),
-                    details: Some(String::from("Please try again later or contact support.")),
                 },
             ),
         };
