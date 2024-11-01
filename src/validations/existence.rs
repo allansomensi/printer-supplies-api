@@ -59,3 +59,22 @@ pub async fn brand_exists(state: Arc<AppState>, brand_id: Uuid) -> Result<(), Ap
         Ok(())
     }
 }
+
+pub async fn printer_exists(state: Arc<AppState>, printer_id: Uuid) -> Result<(), ApiError> {
+    let exists = sqlx::query(r#"SELECT id FROM printers WHERE id = $1;"#)
+        .bind(printer_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error fetching printer by ID: {e}");
+            ApiError::DatabaseError(e)
+        })?
+        .is_some();
+
+    if !exists {
+        error!("Printer ID not found.");
+        Err(ApiError::IdNotFound)
+    } else {
+        Ok(())
+    }
+}

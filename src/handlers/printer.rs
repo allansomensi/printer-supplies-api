@@ -1,11 +1,15 @@
 use crate::{
     database::AppState,
+    errors::api_error::ApiError,
     models::{
         brand::Brand,
-        printer::{CreatePrinterRequest, Printer, PrinterDetails, UpdatePrinterRequest},
+        printer::{
+            CreatePrinterRequest, Printer, PrinterDetails, PrinterView, UpdatePrinterRequest,
+        },
         supplies::{drum::Drum, toner::Toner},
         DeleteRequest,
     },
+    validations::{existence::printer_exists, uniqueness::is_printer_unique},
 };
 use axum::{
     extract::{Path, State},
@@ -13,10 +17,10 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 use uuid::Uuid;
+use validator::Validate;
 
 /// Retrieves the total count of printers.
 ///
@@ -33,25 +37,19 @@ use uuid::Uuid;
         (status = 500, description = "An error occurred while retrieving the printer count")
     )
 )]
-pub async fn count_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let printer_count: Result<(i32,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT COUNT(*)::int FROM printers;"#)
-            .fetch_one(&state.db)
-            .await;
-
-    match printer_count {
-        Ok((count,)) => {
-            info!("Successfully retrieved printer count: {}", count);
-            Ok(Json(count))
-        }
-        Err(e) => {
+pub async fn count_printers(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let count = sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM printers;"#)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| {
             error!("Error retrieving printer count: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error retrieving printer count."),
-            ))
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Successfully retrieved printer count: {count}");
+    Ok(Json(count))
 }
 
 /// Retrieves a specific printer by its ID.
@@ -76,24 +74,8 @@ pub async fn count_printers(State(state): State<Arc<AppState>>) -> impl IntoResp
 pub async fn search_printer(
     Path(id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    type PrinterView = Option<(
-        Uuid,            // printer_id
-        String,          // printer_name
-        String,          // printer_model
-        Uuid,            // brand_id
-        String,          // brand_name
-        Uuid,            // toner_id
-        String,          // toner_name
-        Option<i32>,     // toner_stock
-        Option<Decimal>, // toner_price
-        Uuid,            // drum_id
-        String,          // drum_name
-        Option<i32>,     // drum_stock
-        Option<Decimal>, // drum_price
-    )>;
-
-    let printer: Result<PrinterView, sqlx::Error> = sqlx::query_as(
+) -> Result<impl IntoResponse, ApiError> {
+    let printer = sqlx::query_as::<_, PrinterView>(
         r#"
         SELECT 
             p.id AS printer_id, 
@@ -118,10 +100,14 @@ pub async fn search_printer(
     )
     .bind(id)
     .fetch_optional(&state.db)
-    .await;
+    .await
+    .map_err(|e| {
+        error!("Error retrieving printer with id {id}: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
     match printer {
-        Ok(Some(row)) => {
+        Some(row) => {
             let printer = PrinterDetails {
                 id: row.0,
                 name: row.1,
@@ -145,15 +131,11 @@ pub async fn search_printer(
             };
 
             info!("Printer found: {id}");
-            (StatusCode::OK, Json(Some(printer)))
+            Ok((StatusCode::OK, Json(Some(printer))))
         }
-        Ok(None) => {
+        None => {
             error!("No printer found.");
-            (StatusCode::NOT_FOUND, Json(None))
-        }
-        Err(e) => {
-            error!("Error retrieving printer: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
+            Err(ApiError::IdNotFound)
         }
     }
 }
@@ -174,24 +156,10 @@ pub async fn search_printer(
         (status = 500, description = "An error occurred while retrieving the printers")
     )
 )]
-pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    type PrintersView = Vec<(
-        Uuid,            // printer_id
-        String,          // printer_name
-        String,          // printer_model
-        Uuid,            // brand_id
-        String,          // brand_name
-        Uuid,            // toner_id
-        String,          // toner_name
-        Option<i32>,     // toner_stock
-        Option<Decimal>, // toner_price
-        Uuid,            // drum_id
-        String,          // drum_name
-        Option<i32>,     // drum_stock
-        Option<Decimal>, // drum_price
-    )>;
-
-    let printers: Result<PrintersView, sqlx::Error> = sqlx::query_as(
+pub async fn show_printers(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, ApiError> {
+    let printers = sqlx::query_as::<_, PrinterView>(
         r#"
         SELECT 
             p.id AS printer_id, 
@@ -214,46 +182,39 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
         "#,
     )
     .fetch_all(&state.db)
-    .await;
+    .await
+    .map_err(|e| {
+        error!("Error listing printers: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
-    match printers {
-        Ok(rows) => {
-            let printers = rows
-                .into_iter()
-                .map(|row| PrinterDetails {
-                    id: row.0,
-                    name: row.1,
-                    model: row.2,
-                    brand: Brand {
-                        id: row.3,
-                        name: row.4,
-                    },
-                    toner: Toner {
-                        id: row.5,
-                        name: row.6,
-                        stock: row.7,
-                        price: row.8,
-                    },
-                    drum: Drum {
-                        id: row.9,
-                        name: row.10,
-                        stock: row.11,
-                        price: row.12,
-                    },
-                })
-                .collect::<Vec<PrinterDetails>>();
+    let printers: Vec<PrinterDetails> = printers
+        .into_iter()
+        .map(|row| PrinterDetails {
+            id: row.0,
+            name: row.1,
+            model: row.2,
+            brand: Brand {
+                id: row.3,
+                name: row.4,
+            },
+            toner: Toner {
+                id: row.5,
+                name: row.6,
+                stock: row.7,
+                price: row.8,
+            },
+            drum: Drum {
+                id: row.9,
+                name: row.10,
+                stock: row.11,
+                price: row.12,
+            },
+        })
+        .collect();
 
-            info!("Printers listed successfully");
-            Ok(Json(printers))
-        }
-        Err(e) => {
-            error!("Error listing printers: {e}");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json("Error listing printers."),
-            ))
-        }
-    }
+    info!("Printers listed successfully");
+    Ok(Json(printers))
 }
 
 /// Create a new printer.
@@ -278,7 +239,11 @@ pub async fn show_printers(State(state): State<Arc<AppState>>) -> impl IntoRespo
 pub async fn create_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreatePrinterRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+    is_printer_unique(state.clone(), request.name.clone()).await?;
+
     let new_printer = Printer::new(
         &request.name,
         &request.model,
@@ -287,77 +252,23 @@ pub async fn create_printer(
         Uuid::from_str(&request.drum).unwrap(),
     );
 
-    // Check duplicate
-    match sqlx::query(r#"SELECT id FROM printers WHERE name = $1;"#)
-        .bind(&new_printer.name)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(_)) => {
-            error!("Printer '{}' already exists.", &new_printer.name);
-            (StatusCode::CONFLICT, Err(Json("Printer already exists.")))
-        }
-        Ok(None) => {
-            // Name is empty
-            if new_printer.name.is_empty() {
-                error!("Printer name cannot be empty.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name cannot be empty.")),
-                );
-            }
+    sqlx::query(r#"INSERT INTO printers (id, name, model, brand, toner, drum) VALUES ($1, $2, $3, $4, $5, $6);"#,
+    )
+    .bind(new_printer.id)
+    .bind(new_printer.name)
+    .bind(new_printer.model)
+    .bind(new_printer.brand)
+    .bind(new_printer.toner)
+    .bind(new_printer.drum)
+    .execute(&state.db)
+    .await
+    .map_err(|e| {
+        error!("Error creating printer: {e}");
+        ApiError::DatabaseError(e)
+    })?;
 
-            // Name too short
-            if new_printer.name.len() < 4 {
-                error!("Printer name is too short.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name is too short.")),
-                );
-            }
-
-            // Name too long
-            if new_printer.name.len() > 20 {
-                error!("Printer name is too long.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name is too long.")),
-                );
-            }
-
-            match sqlx::query(
-                r#"
-                INSERT INTO printers (id, name, model, brand, toner, drum)
-                VALUES ($1, $2, $3, $4, $5, $6);
-                "#,
-            )
-            .bind(new_printer.id)
-            .bind(new_printer.name)
-            .bind(new_printer.model)
-            .bind(new_printer.brand)
-            .bind(new_printer.toner)
-            .bind(new_printer.drum)
-            .execute(&state.db)
-            .await
-            {
-                Ok(_) => {
-                    info!("Printer created! ID: {}", &new_printer.id);
-                    (StatusCode::CREATED, Ok(Json(new_printer.id)))
-                }
-                Err(e) => {
-                    error!("Error creating printer: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error creating printer.")),
-                    )
-                }
-            }
-        }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Err(Json("Error creating printer.")),
-        ),
-    }
+    info!("Printer created! ID: {}", &new_printer.id);
+    Ok((StatusCode::CREATED, Json(new_printer.id)))
 }
 
 /// Updates an existing printer.
@@ -378,6 +289,7 @@ pub async fn create_printer(
         (status = 200, description = "Printer updated successfully", body = Uuid),
         (status = 400, description = "Invalid input, including empty name or name too short/long"),
         (status = 404, description = "Printer ID not found"),
+        (status = 304, description = "Printer not modified"),
         (status = 409, description = "Conflict: Printer with the same name already exists"),
         (status = 500, description = "An error occurred while updating the printer")
     )
@@ -385,108 +297,100 @@ pub async fn create_printer(
 pub async fn update_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdatePrinterRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    request.validate()?;
+    printer_exists(state.clone(), request.id.clone()).await?;
+
     let printer_id = request.id;
     let new_name = request.name;
     let new_model = request.model;
-    let new_brand = Uuid::from_str(request.brand.as_str()).unwrap();
-    let new_toner = Uuid::from_str(request.toner.as_str()).unwrap();
-    let new_drum = Uuid::from_str(request.drum.as_str()).unwrap();
+    let new_brand_id = request.brand.map(|b| Uuid::from_str(&b).ok()).flatten();
+    let new_toner_id = request.toner.map(|t| Uuid::from_str(&t).ok()).flatten();
+    let new_drum_id = request.drum.map(|d| Uuid::from_str(&d).ok()).flatten();
 
-    // ID not found
-    match sqlx::query(r#"SELECT id FROM printers WHERE id = $1;"#)
-        .bind(printer_id)
-        .fetch_optional(&state.db)
-        .await
-    {
-        Ok(Some(_)) => {
-            // Name is empty
-            if new_name.is_empty() {
-                error!("Printer name cannot be empty.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name cannot be empty.")),
-                );
-            }
+    let mut updated = false;
 
-            // Name too short
-            if new_name.len() < 4 {
-                error!("Printer name is too short.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name is too short.")),
-                );
-            }
-
-            // Name too long
-            if new_name.len() > 20 {
-                error!("Printer name is too long.");
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Err(Json("Printer name is too long.")),
-                );
-            }
-
-            // Check duplicate
-            match sqlx::query(r#"SELECT id FROM printers WHERE name = $1 AND id != $2;"#)
-                .bind(&new_name)
-                .bind(printer_id)
-                .fetch_optional(&state.db)
-                .await
-            {
-                Ok(Some(_)) => {
-                    error!("Printer name already exists.");
-                    (StatusCode::CONFLICT, Err(Json("Printer already exists.")))
-                }
-                Ok(None) => {
-                    match sqlx::query(
-                        r#"UPDATE printers 
-                    SET name = $1, model = $2, brand = $3, toner = $4, drum = $5 
-                    WHERE id = $6;"#,
-                    )
-                    .bind(&new_name)
-                    .bind(&new_model)
-                    .bind(new_brand)
-                    .bind(new_toner)
-                    .bind(new_drum)
-                    .bind(printer_id)
-                    .execute(&state.db)
-                    .await
-                    {
-                        Ok(_) => {
-                            info!("Printer updated! ID: {}", &printer_id);
-                            (StatusCode::OK, Ok(Json(printer_id)))
-                        }
-                        Err(e) => {
-                            error!("Error updating printer: {}", e);
-                            (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                Err(Json("Error updating printer.")),
-                            )
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error checking for duplicate printer name: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Err(Json("Error checking for duplicated printer name.")),
-                    )
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Printer ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Printer ID not found.")))
-        }
-        Err(e) => {
-            error!("Error fetching printer by ID: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error fetching printer by ID")),
-            )
-        }
+    // Update name if provided
+    if let Some(name) = new_name {
+        sqlx::query(r#"UPDATE printers SET name = $1 WHERE id = $2;"#)
+            .bind(&name)
+            .bind(printer_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer name: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
     }
+
+    // Update model if provided
+    if let Some(model) = new_model {
+        sqlx::query(r#"UPDATE printers SET model = $1 WHERE id = $2;"#)
+            .bind(&model)
+            .bind(printer_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer model: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    // Update brand if provided
+    if let Some(brand) = new_brand_id {
+        sqlx::query(r#"UPDATE printers SET brand = $1 WHERE id = $2;"#)
+            .bind(brand)
+            .bind(printer_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer brand: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    // Update toner if provided
+    if let Some(toner) = new_toner_id {
+        sqlx::query(r#"UPDATE printers SET toner = $1 WHERE id = $2;"#)
+            .bind(toner)
+            .bind(printer_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer toner: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    // Update drum if provided
+    if let Some(drum) = new_drum_id {
+        sqlx::query(r#"UPDATE printers SET drum = $1 WHERE id = $2;"#)
+            .bind(drum)
+            .bind(printer_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating printer drum: {e}");
+                ApiError::DatabaseError(e)
+            })?;
+        updated = true;
+    }
+
+    if !updated {
+        error!(
+            "No updates were made for the provided printer ID: {}",
+            &printer_id
+        );
+        return Err(ApiError::NotModified);
+    }
+
+    info!("Printer updated! ID: {}", &printer_id);
+    Ok(Json(printer_id))
 }
 
 /// Deletes an existing printer.
@@ -510,41 +414,20 @@ pub async fn update_printer(
 pub async fn delete_printer(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DeleteRequest>,
-) -> impl IntoResponse {
-    match sqlx::query(r#"SELECT id FROM printers WHERE id = $1;"#)
+) -> Result<impl IntoResponse, ApiError> {
+    // Validations
+    printer_exists(state.clone(), request.id.clone()).await?;
+
+    // Delete the printer
+    sqlx::query(r#"DELETE FROM printers WHERE id = $1;"#)
         .bind(request.id)
-        .fetch_optional(&state.db)
+        .execute(&state.db)
         .await
-    {
-        Ok(Some(_)) => {
-            match sqlx::query(r#"DELETE FROM printers WHERE id = $1;"#)
-                .bind(request.id)
-                .execute(&state.db)
-                .await
-            {
-                Ok(_) => {
-                    info!("Printer deleted! ID: {}", &request.id);
-                    (StatusCode::OK, Ok(Json("Printer deleted!")))
-                }
-                Err(e) => {
-                    error!("Error deleting printer: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Ok(Json("Error deleting printer.")),
-                    )
-                }
-            }
-        }
-        Ok(None) => {
-            error!("Printer ID not found.");
-            (StatusCode::NOT_FOUND, Err(Json("Printer ID not found")))
-        }
-        Err(e) => {
+        .map_err(|e| {
             error!("Error deleting printer: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Err(Json("Error deleting printer.")),
-            )
-        }
-    }
+            ApiError::DatabaseError(e)
+        })?;
+
+    info!("Printer deleted! ID: {}", &request.id);
+    Ok(Json("Printer deleted!"))
 }
