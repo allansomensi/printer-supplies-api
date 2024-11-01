@@ -16,7 +16,8 @@ thiserror = "1.0.65"
 tokio = { version = "1.39.2", features = ["full"] }
 tower-http = { version = "0.6.1", features = ["cors"] }
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["chrono"] }
+tracing-appender = "0.2.3"
+tracing-subscriber = { version = "0.3.18", features = ["chrono", "env-filter"] }
 utoipa = { version = "5.1.3", features = ["chrono", "decimal", "uuid"] }
 utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
 uuid = { version = "1.10.0", features = ["serde", "v4"] }
