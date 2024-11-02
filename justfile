@@ -1,5 +1,8 @@
-load-env:
-    @bash -c 'source scripts/set_env.sh && exec "$SHELL"'
+set dotenv-required
+set dotenv-filename := x'environments/.env.${ENVIRONMENT:-development}'
+
+default:
+    just serve
 
 # Services
 services-up:
