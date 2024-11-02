@@ -44,8 +44,11 @@ cargo install just
 
 ## 2. Load environment variables
 
-``` elixir
-just load-env
+By default, the selected file is `.env.development`, so there's no need to run this command in a development environment.
+If you're running in a **production** environment, execute the command below to ensure the correct environment variables are loaded.
+
+``` bash
+source scripts/set_env.sh
 ```
 
 ## 3. Build and run the Docker container:
