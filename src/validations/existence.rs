@@ -1,4 +1,5 @@
-use crate::{database::AppState, errors::api_error::ApiError};
+use crate::errors::api_error::ApiError;
+use infra::database::AppState;
 use std::sync::Arc;
 use tracing::error;
 use uuid::Uuid;

@@ -6,8 +6,9 @@ pub mod status;
 pub mod supplies;
 pub mod swagger;
 
-use crate::{config::Config, database::AppState};
 use axum::Router;
+use config::Config;
+use infra::database::AppState;
 use std::sync::Arc;
 
 pub fn create_routes(state: Arc<AppState>) -> Router {

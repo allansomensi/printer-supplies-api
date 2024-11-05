@@ -1,5 +1,4 @@
 use crate::{
-    database::AppState,
     errors::api_error::ApiError,
     models::{
         brand::{Brand, CreateBrandRequest, UpdateBrandRequest},
@@ -13,6 +12,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use infra::database::AppState;
 use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;

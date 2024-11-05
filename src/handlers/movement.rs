@@ -1,5 +1,4 @@
 use crate::{
-    database::AppState,
     errors::api_error::ApiError,
     models::{
         movement::{
@@ -12,10 +11,11 @@ use crate::{
 };
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     response::IntoResponse,
     Json,
 };
-use reqwest::StatusCode;
+use infra::database::AppState;
 use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 use uuid::Uuid;

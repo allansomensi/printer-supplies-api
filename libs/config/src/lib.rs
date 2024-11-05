@@ -1,6 +1,6 @@
-pub mod cors;
-pub mod environment;
-pub mod logger;
+mod cors;
+mod environment;
+mod logger;
 
 pub struct Config {}
 

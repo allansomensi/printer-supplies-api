@@ -1,0 +1,13 @@
+[package]
+name = "infra"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { version = "0.8.2", features = [
+    "chrono",
+    "postgres",
+    "runtime-tokio-native-tls",
+    "rust_decimal",
+    "uuid",
+] }
