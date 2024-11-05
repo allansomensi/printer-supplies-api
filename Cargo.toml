@@ -3,22 +3,29 @@ name = "printer-supplies-api"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["libs/config", "libs/infra"]
+
 [dependencies]
+infra = { path = "libs/infra" }
+config = { path = "libs/config" }
+
 axum = "0.7.5"
-chrono = { version = "0.4.38", features = ["serde"] }
-dotenvy = "0.15.7"
-reqwest = "0.12.7"
-rust_decimal = { version = "1.36.0", features = ["serde", "serde-with-float"] }
-serde = { version = "1.0.208", features = ["derive"] }
-serde_json = "1.0.125"
-sqlx = { version = "0.8.1", features = ["chrono", "postgres", "runtime-tokio-native-tls", "rust_decimal", "uuid"] }
 thiserror = "1.0.65"
-tokio = { version = "1.39.2", features = ["full"] }
-tower-http = { version = "0.6.1", features = ["cors"] }
 tracing = "0.1.40"
-tracing-appender = "0.2.3"
-tracing-subscriber = { version = "0.3.18", features = ["chrono", "env-filter"] }
-utoipa = { version = "5.1.3", features = ["chrono", "decimal", "uuid"] }
-utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
+serde_json = "1.0.125"
+sqlx = { version = "0.8.1", features = [
+    "chrono",
+    "postgres",
+    "runtime-tokio-native-tls",
+    "rust_decimal",
+    "uuid",
+] }
+tokio = { version = "1.39.2", features = ["full"] }
+chrono = { version = "0.4.38", features = ["serde"] }
+serde = { version = "1.0.208", features = ["derive"] }
 uuid = { version = "1.10.0", features = ["serde", "v4"] }
 validator = { version = "0.18.1", features = ["derive"] }
+utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
+utoipa = { version = "5.1.3", features = ["chrono", "decimal", "uuid"] }
+rust_decimal = { version = "1.36.0", features = ["serde", "serde-with-float"] }

@@ -1,5 +1,6 @@
-use crate::{database::AppState, handlers::status};
+use crate::handlers::status;
 use axum::{routing::get, Router};
+use infra::database::AppState;
 use std::sync::Arc;
 
 pub fn create_routes(state: Arc<AppState>) -> Router {

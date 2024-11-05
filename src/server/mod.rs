@@ -1,7 +1,5 @@
-use crate::{
-    database::{connection::create_pool, AppState},
-    routes,
-};
+use crate::routes;
+use infra::database::{connection::create_pool, AppState};
 use std::sync::Arc;
 use tracing::{error, info};
 

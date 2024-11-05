@@ -1,5 +1,6 @@
-use crate::{database::AppState, errors::api_error::ApiError};
+use crate::errors::api_error::ApiError;
 use axum::{extract::State, response::IntoResponse, Json};
+use infra::database::AppState;
 use sqlx::migrate;
 use std::sync::Arc;
 use tracing::{error, info};
@@ -25,10 +26,13 @@ pub async fn dry_run() {
     )
 )]
 pub async fn live_run(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, ApiError> {
-    migrate!("./migrations").run(&state.db).await.map_err(|e| {
-        error!("Error applying migrations: {e}");
-        ApiError::DatabaseError(e.into())
-    })?;
+    migrate!("./libs/infra/src/database/migrations")
+        .run(&state.db)
+        .await
+        .map_err(|e| {
+            error!("Error applying migrations: {e}");
+            ApiError::DatabaseError(e.into())
+        })?;
 
     info!("Migrations applied successfully!");
     Ok(Json("Migrations applied successfully!"))

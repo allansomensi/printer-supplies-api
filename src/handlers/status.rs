@@ -1,10 +1,10 @@
 use crate::{
-    database::AppState,
     errors::api_error::ApiError,
     models::status::{Database, Dependencies, Status},
 };
 use axum::{extract::State, response::IntoResponse, Json};
 use chrono::Utc;
+use infra::database::AppState;
 use std::{env, sync::Arc};
 use tracing::{error, info};
 
