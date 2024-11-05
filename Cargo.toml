@@ -1,0 +1,11 @@
+[package]
+name = "printer-supplies-api"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = ["adapters"]
+
+[dependencies]
+adapters = { path = "./adapters" }
+tokio = { version = "1.41.0", features = ["full"] }
