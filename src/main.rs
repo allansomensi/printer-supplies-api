@@ -4,14 +4,13 @@ use outbound::sqlite::Sqlite;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("🌟 Printer Supplies API 🌟");
+    println!("\n---🌟 Printer Supplies API 🌟---\n");
 
     let config = match config::Config::init() {
         Ok(config) => {
-            tracing::info!("✅ Configurations loaded!");
-            tracing::info!(environment = config.environment);
-            tracing::info!(file_logger = config.rust_log_file);
-            tracing::info!(console_logger = config.rust_log_console);
+            tracing::info!(environment = %config.environment);
+            tracing::info!(file_logger = %config.rust_log_file);
+            tracing::info!(console_logger = %config.rust_log_console);
             config
         }
         Err(e) => {
