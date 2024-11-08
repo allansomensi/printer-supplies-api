@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -66,6 +65,35 @@ impl CreateTonerRequest {
 pub enum CreateTonerError {
     #[error("Toner with name {name} already exists")]
     Duplicate { name: TonerName },
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+// Delete
+
+#[derive(Clone, Debug, Error)]
+#[error("Toner id cannot be empty")]
+pub struct TonerIdEmptyError;
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DeleteTonerRequest {
+    id: Uuid,
+}
+
+impl DeleteTonerRequest {
+    pub fn new(id: Uuid) -> Self {
+        Self { id }
+    }
+
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum DeleteTonerError {
+    #[error("Toner with id {id} not found")]
+    NotFound { id: Uuid },
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }
