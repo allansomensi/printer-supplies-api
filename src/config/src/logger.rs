@@ -10,13 +10,23 @@ use super::Config;
 
 impl Config {
     pub fn logger_init() {
-        struct UtcFormattedTime;
+        struct UtcFormattedTimeConsole;
+        struct UtcFormattedTimeFile;
 
-        impl FormatTime for UtcFormattedTime {
+        impl FormatTime for UtcFormattedTimeFile {
             fn format_time(&self, writer: &mut Writer<'_>) -> std::fmt::Result {
                 let brasilia_offset = FixedOffset::west_opt(3 * 3600).unwrap();
                 let now: DateTime<FixedOffset> = Utc::now().with_timezone(&brasilia_offset);
                 let formatted_time = now.format("%d/%m/%Y %H:%M:%S").to_string();
+                write!(writer, "{}", formatted_time)
+            }
+        }
+
+        impl FormatTime for UtcFormattedTimeConsole {
+            fn format_time(&self, writer: &mut Writer<'_>) -> std::fmt::Result {
+                let brasilia_offset = FixedOffset::west_opt(3 * 3600).unwrap();
+                let now: DateTime<FixedOffset> = Utc::now().with_timezone(&brasilia_offset);
+                let formatted_time = now.format("%H:%M:%S").to_string();
                 write!(writer, "{}", formatted_time)
             }
         }
@@ -27,7 +37,7 @@ impl Config {
         let file_appender = rolling::daily("logs", "api.log");
 
         let file_layer = fmt::Layer::new()
-            .with_timer(UtcFormattedTime)
+            .with_timer(UtcFormattedTimeFile)
             .with_writer(file_appender)
             .with_file(true)
             .with_ansi(false)
@@ -37,11 +47,12 @@ impl Config {
 
         let console_layer = fmt::Layer::new()
             .pretty()
-            .with_timer(UtcFormattedTime)
+            .with_timer(UtcFormattedTimeConsole)
             .with_file(false)
             .with_ansi(true)
             .with_line_number(false)
             .with_target(false)
+            .compact()
             .with_filter(rust_log_console);
 
         let subscriber = Registry::default().with(console_layer).with(file_layer);

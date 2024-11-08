@@ -49,6 +49,7 @@ impl HttpServer {
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
+        println!("");
         tracing::info!(
             "✅ Server started at: {}",
             self.listener.local_addr().unwrap()
