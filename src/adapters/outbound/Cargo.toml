@@ -1,0 +1,10 @@
+[package]
+name = "outbound"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+domain = { path = "../../domain" }
+anyhow = "1.0.93"
+uuid = "1.11.0"
+sqlx = { version = "0.8.2", features = ["macros", "runtime-tokio", "sqlite"] }

@@ -1,0 +1,9 @@
+[package]
+name = "domain"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.93"
+thiserror = "2.0.0"
+uuid = { version = "1.11.0", features = ["v4"] }

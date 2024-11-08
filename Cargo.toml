@@ -4,8 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["adapters"]
+members = [
+    "src/config",
+    "src/domain",
+    "src/adapters/inbound",
+    "src/adapters/outbound",
+]
 
 [dependencies]
-adapters = { path = "./adapters" }
+domain = { path = "src/domain" }
+inbound = { path = "src/adapters/inbound" }
+outbound = { path = "src/adapters/outbound" }
+config = { path = "src/config" }
+
 tokio = { version = "1.41.0", features = ["full"] }
+tracing-subscriber = "0.3.18"
+anyhow = "1.0.93"
+tracing = "0.1.40"
