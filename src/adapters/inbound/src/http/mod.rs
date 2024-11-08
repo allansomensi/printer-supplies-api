@@ -15,8 +15,8 @@ pub struct HttpServerConfig<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct AppState<BS: StockService> {
-    toner_service: Arc<BS>,
+struct AppState<SS: StockService> {
+    toner_service: Arc<SS>,
 }
 
 pub struct HttpServer {

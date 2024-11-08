@@ -70,8 +70,8 @@ impl CreateTonerHttpRequestBody {
     }
 }
 
-pub async fn create_toner<BS: StockService>(
-    State(state): State<AppState<BS>>,
+pub async fn create_toner<SS: StockService>(
+    State(state): State<AppState<SS>>,
     Json(body): Json<CreateTonerHttpRequestBody>,
 ) -> Result<ApiSuccess<CreateTonerResponseData>, ApiError> {
     let domain_req = body.try_into_domain()?;

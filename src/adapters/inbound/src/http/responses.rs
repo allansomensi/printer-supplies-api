@@ -44,6 +44,7 @@ impl<T: Serialize + PartialEq> IntoResponse for ApiSuccess<T> {
 pub enum ApiError {
     InternalServerError(String),
     UnprocessableEntity(String),
+    NotFound(String),
 }
 
 impl From<anyhow::Error> for ApiError {
@@ -79,6 +80,11 @@ impl IntoResponse for ApiError {
                     StatusCode::UNPROCESSABLE_ENTITY,
                     message,
                 )),
+            )
+                .into_response(),
+            NotFound(message) => (
+                StatusCode::NOT_FOUND,
+                Json(ApiResponseBody::new_error(StatusCode::NOT_FOUND, message)),
             )
                 .into_response(),
         }

@@ -6,7 +6,7 @@ mod toner;
 
 use super::AppState;
 
-pub fn api_routes<BS: StockService>(state: AppState<BS>) -> Router {
+pub fn api_routes<SS: StockService>(state: AppState<SS>) -> Router {
     Router::new()
         .nest(
             "/api/v1",
